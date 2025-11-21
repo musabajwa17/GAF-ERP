@@ -1,0 +1,188 @@
+
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+html, body {
+  font-family: 'Poppins', sans-serif;
+}
+
+/* :root {
+  --background: #ffffff;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+} */
+
+
+
+:root {
+  --color: #557736;
+  --color1: #5577366f;
+  --lowopacitycolor: #5577362e;
+
+
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* ============================================
+   HIDING DEFAULT ICONS & TOOLBAR STYLES
+   ============================================ */
+
+.leaflet-draw-toolbar,
+.leaflet-draw-toolbar-top,
+.leaflet-bar {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* Align toolbar buttons horizontally */
+.leaflet-draw {
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  /* gap: 12px !important; */
+}
+
+/* Remove separator line */
+.leaflet-draw-toolbar-separator {
+  display: none !important;
+}
+.leaflet-control:nth-child(1){
+  display: flex;
+  gap: 50px;
+}
+
+/* ============================================
+   BASE BUTTON DESIGN (ALL DRAW BUTTONS)
+   ============================================ */
+.leaflet-draw-toolbar a {
+  width: 110px !important;
+  height: 42px !important;
+  border-radius: 8px !important;
+  border: 1px solid #cbd5e1 !important;
+  background: #ffffff !important;
+
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  font-family: "Inter", sans-serif !important;
+  color: #1e293b !important;
+
+  transition: all 0.20s ease-in-out !important;
+
+  background-image: none !important; /* remove default sprite */
+  padding: 0 !important;
+}
+
+/* Hover Effect */
+.leaflet-draw-toolbar a:hover {
+  background: #f1f5f9 !important;
+  border-color: #94a3b8 !important;
+  color: #0f172a !important;
+}
+
+/* Active Button (when drawing) */
+.leaflet-draw-toolbar a.leaflet-draw-toolbar-button-enabled {
+  background: #0ea5e9 !important;
+  color: white !important;
+  border-color: #0284c7 !important;
+}
+.leaflet-draw-toolbar{
+  display: flex;
+  flex-direction: column; gap: 10px;
+}
+
+
+/* Rectangle Button */
+.leaflet-draw{
+  display: flex;
+  flex-direction: column;
+}
+.leaflet-draw-draw-rectangle::before {
+  content: "Rectangle" !important;
+}
+
+/* Polygon Button */
+.leaflet-draw-draw-polygon::before {
+  content: "Polygon" !important;
+  cursor: pointer;
+}
+
+/* Delete Button */
+.leaflet-draw-edit-remove::before {
+  content: "Delete" !important;
+  font-weight: 700 !important;
+  cursor: pointer;
+}
+.leaflet-draw-edit-edit::before {
+  content: "Edit" !important;
+  font-weight: 700 !important;
+  cursor: pointer;
+}
+/* Remove Leaflet sprite icon spacing */
+.leaflet-draw-toolbar a::before {
+  display: block !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Remove default icon box size */
+.leaflet-draw-toolbar a:hover::before,
+.leaflet-draw-toolbar a::before {
+  width: auto !important;
+  height: auto !important;
+  background: none !important;
+}
+
+
+/* searching bar */
+.reset{
+  font-size: 20px;
+  margin-top: 5px;
+  content: "Search";
+}
+
+/* Increase placeholder font size */
+.leaflet-control-geosearch input::placeholder {
+  font-size: 16px; /* Change to whatever size you want */
+  color: #888; /* Optional: change placeholder color */
+  font-weight: 500; /* Optional: make it slightly bolder */
+  
+
+}
+/* Target the GeoSearch input field */
+.leaflet-control-geosearch input {
+  height: 40px !important;          /* Increase height */
+  padding: 0 15px;       /* Horizontal padding */
+  border-radius: 12px;   /* Rounded corners */
+  box-sizing: border-box; /* Ensure padding doesn't break layout */
+}
+
