@@ -174,10 +174,12 @@ const FieldMapping = forwardRef(({ onAreaData, searchLocation }, ref) => {
   const mapRef = useRef(null);
   const featureGroupRef = useRef(null);
   const [areaInfo, setAreaInfo] = useState(null);
+  
   const [selectedTool, setSelectedTool] = useState("hand");
   const [areaUnit, setAreaUnit] = useState("ac");
   const [searchMarker, setSearchMarker] = useState(null);
   const [forms, setForms] = useState([]);
+  
   const kmlInputRef = useRef(null);
 
   /* Fix icons on mount */
@@ -496,7 +498,9 @@ const FieldMapping = forwardRef(({ onAreaData, searchLocation }, ref) => {
         setSelectedUnit={setAreaUnit}
         farmId={areaInfo?.farmId || `F-${Date.now()}`}
         forms={forms}
+
         postFields={async (payload) => {
+          console.log(payload)
           setLoading(true);
           try {
             const res = await fetch(
@@ -513,6 +517,7 @@ const FieldMapping = forwardRef(({ onAreaData, searchLocation }, ref) => {
               }
             );
             const data = await res.json();
+            
             setForms((p) => [data, ...p]);
             return data;
           } finally {
@@ -657,6 +662,7 @@ function MapDetail({
   };
 
   const handleSubmit = async () => {
+    
     if (!formData.farm_name) return alert("Please enter farm name");
     const payload = {
       ...formData,
@@ -664,6 +670,7 @@ function MapDetail({
       coordinates: parsedCoordinates,
       width: mapAreaInfo.width || null,
       height: mapAreaInfo.height || null,
+      area:mapAreaInfo.area,
     };
 
     try {
@@ -679,7 +686,6 @@ function MapDetail({
     }
     localStorage.removeItem("mapAreaInfo");
     const interval = setInterval(() => {
-      window.location.reload();
     }, 2000);
     return () => {
       clearInterval(interval);
@@ -689,7 +695,6 @@ function MapDetail({
   const discard = () => {
     if (typeof window !== "undefined") {
       localStorage.removeItem("mapAreaInfo");
-      window.location.reload();
     }
   };
   const areaTypes = ["Flood", "ICP", "Trial", "Drip"];
