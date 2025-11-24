@@ -179,7 +179,7 @@ ${text}`;
       {/* Saved Reports Drawer Button */}
       <button
         onClick={() => setDrawerOpen(true)}
-        className="fixed top-32 right-8 bg-gradient-to-r from-emerald-600 to-teal-600 text-white px-6 py-3 rounded-lg shadow-lg z-50"
+        className="fixed cursor-pointer top-32 right-8 bg-gradient-to-r from-emerald-600 to-teal-600 text-white px-6 py-3 rounded-lg shadow-lg z-50"
       >
         Saved Reports
       </button>
