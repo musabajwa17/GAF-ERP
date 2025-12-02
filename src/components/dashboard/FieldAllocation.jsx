@@ -41,7 +41,7 @@ const AllocationPage = () => {
   // Existing allocations state
 const [allocations, setAllocations] = useState(() => {
   const saved = localStorage.getItem("allocations");
-  return JSON.parse(saved)
+  return saved ? JSON.parse(saved) : [];
 });
 
 

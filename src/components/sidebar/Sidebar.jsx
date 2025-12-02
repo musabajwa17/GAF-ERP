@@ -230,9 +230,9 @@ export default function Sidebar() {
   return (
     <>
       <div className="flex w-full items-start h-screen overflow-hidden">
-        <aside className="w-80 h-full self-start bg-gradient-to-br from-slate-50 via-white to-slate-50 shadow-2xl flex flex-col overflow-hidden border-r border-slate-200/60">
+        <aside className="w-80 h-full self-start bg-gradient-to-br from-slate-50 via-white to-slate-50 shadow-2xl flex flex-col overflow-hidden  border-r border-slate-200/60">
           {/* Logo Section - INCREASED HEIGHT */}
-          <div className="w-full flex justify-start pl-5 gap-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white py-6 items-center shadow-lg">
+          <div className="w-full flex justify-start pl-5 gap-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white py-[1.7rem] items-center shadow-lg">
             <Tractor className="w-7 h-7" />
             <h1 className="text-2xl font-bold tracking-tight">GAF ERP</h1>
           </div>
@@ -331,7 +331,7 @@ export default function Sidebar() {
         <main className="flex-1 flex flex-col">
           <header className="sticky top-0 z-10">
             {/* Dynamic page header */}
-            <div className="bg-gradient-to-r from-emerald-600 to-teal-600 px-6 py-4 shadow-lg">
+            <div className="bg-gradient-to-r from-teal-600 to-emerald-600 px-6 py-[1.08REM]">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="bg-white/20 backdrop-blur-sm p-2 rounded-lg">
