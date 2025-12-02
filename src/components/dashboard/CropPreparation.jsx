@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, MapPin, Calendar, Droplets, Sun, Sprout, ArrowLeft, Info, Leaf, Bug, Beaker, TrendingUp } from 'lucide-react';
+import { Plus, MapPin, Calendar, Droplets, Sun, Sprout, ArrowLeft, Info, Leaf, Bug, Beaker, TrendingUp, Pill, Truck, Shield, Bean } from 'lucide-react';
 import CROP_DATABASE from "../../data/crops"
 const CropPreparation = () => {
   console.log(CROP_DATABASE)
@@ -11,8 +11,18 @@ const CropPreparation = () => {
   const [step, setStep] = useState(1);
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
+  const costItems = [
+    { key: 'land_prep', label: 'Land Preparation', icon: <Sprout /> },
+    { key: 'seed', label: 'Seed Cost', icon: <Bean /> },
+    { key: 'seed_treatment', label: 'Seed Treatment', icon: <Pill /> },
+    { key: 'sowing_charges', label: 'Sowing Charges', icon: <Truck /> },
+    { key: 'irrigation', label: 'Irrigation', icon: <Droplets /> },
+    { key: 'fertilizers', label: 'Fertilizers', icon: <Beaker /> },
+    { key: 'crop_protection', label: 'Crop Protection', icon: <Shield /> },
+    { key: 'harvesting_tpt', label: 'Harvesting & Transport', icon: <Truck /> }
+  ];
 
-  const [cropForm, setCropForm] = useState({ type: '', variety: '' });
+  const [cropForm, setCropForm] = useState({ type: '', variety: '', locationId: '' });
   const [plantingForm, setPlantingForm] = useState({
     cropId: null,
     locationId: '',
@@ -23,9 +33,9 @@ const CropPreparation = () => {
     rowSpacing: 0,
     plantedArea: 100.0,
     plannedHarvest: '',
-    expectedHarvestAmount: 0
+    expectedHarvestAmount: 0,
+    harvestDuration: 7 // Default 7 days for harvest period
   });
-
   useEffect(() => {
     fetchLocationsFromAPI();
   }, []);
@@ -67,21 +77,24 @@ const CropPreparation = () => {
   };
 
   const handleAddCrop = () => {
-    if (!cropForm.type || !cropForm.variety) {
-      alert('Please select crop type and variety');
+    if (!cropForm.type || !cropForm.variety || !cropForm.locationId) {
+      alert('Please select crop type, variety, and location');
       return;
     }
 
     const cropData = CROP_DATABASE[cropForm.type];
+    const location = locations.find(l => l.id === parseInt(cropForm.locationId));
+
     const newCrop = {
       id: Date.now(),
       type: cropForm.type,
       variety: cropForm.variety,
+      location: location,
       ...cropData
     };
 
     setCrops([...crops, newCrop]);
-    setCropForm({ type: '', variety: '' });
+    setCropForm({ type: '', variety: '', locationId: '' });
     setView('cropList');
   };
 
@@ -176,21 +189,17 @@ const CropPreparation = () => {
   };
 
   const handleCreatePlanting = () => {
-    if (!plantingForm.locationId) {
-      alert('Please select a location');
-      return;
-    }
 
     if (!validatePlantingDates()) {
       return;
     }
 
-    const location = locations.find(l => l.id === parseInt(plantingForm.locationId));
+    // const location = locations.find(l => l.id === parseInt(plantingForm.locationId));
 
-    if (isLocationPlanted(location.id)) {
-      alert('This location is already planted! Please harvest first.');
-      return;
-    }
+    // if (isLocationPlanted(location.id)) {
+    //   alert('This location is already planted! Please harvest first.');
+    //   return;
+    // }
 
     // Auto-calculate yield
     const calculatedYield = calculateYield(selectedCrop, plantingForm.plantedArea);
@@ -220,23 +229,32 @@ const CropPreparation = () => {
 
   const getCellColor = (date, planting) => {
     const currentDate = new Date(date);
+    currentDate.setHours(0, 0, 0, 0);
+
     const sowingStart = new Date(planting.seedStarted);
+    sowingStart.setHours(0, 0, 0, 0);
+
     const sowingEnd = new Date(sowingStart);
     sowingEnd.setDate(sowingEnd.getDate() + 7);
-    const harvestDate = new Date(planting.plannedHarvest);
 
-    if (planting.harvested && currentDate >= harvestDate) {
-      return 'bg-slate-700 text-white';
-    }
+    const harvestDate = new Date(planting.plannedHarvest);
+    harvestDate.setHours(0, 0, 0, 0);
+
+    // Sowing period (7 days from seed started)
     if (currentDate >= sowingStart && currentDate < sowingEnd) {
       return 'bg-amber-100 text-slate-900 border border-amber-300';
     }
+
+    // Growing period (from end of sowing to harvest date, excluding harvest date)
     if (currentDate >= sowingEnd && currentDate < harvestDate) {
       return 'bg-emerald-600 text-white';
     }
-    if (currentDate.toDateString() === harvestDate.toDateString()) {
+
+    // Harvest date - only highlight if marked as harvested
+    if (currentDate.getTime() === harvestDate.getTime() && planting.harvested) {
       return 'bg-slate-800 text-white font-bold';
     }
+
     return '';
   };
 
@@ -257,9 +275,8 @@ const CropPreparation = () => {
       days.push(
         <div
           key={day}
-          className={`h-20 border border-slate-200 rounded p-2 text-sm ${
-            plantingsOnDay.length > 0 ? getCellColor(date, plantingsOnDay[0]) : 'bg-white hover:bg-slate-50'
-          }`}
+          className={`h-20 border border-slate-200 rounded p-2 text-sm ${plantingsOnDay.length > 0 ? getCellColor(date, plantingsOnDay[0]) : 'bg-white hover:bg-slate-50'
+            }`}
         >
           <div className="font-semibold">{day}</div>
           {plantingsOnDay.length > 0 && (
@@ -334,42 +351,6 @@ const CropPreparation = () => {
   return (
     <div className="min-h-screen bg-slate-50">
       <div className="max-w-7xl mx-auto p-6">
-        {/* Header */}
-        {/* <div className="bg-white rounded-lg border-l-4 border-emerald-600 shadow-sm p-6 mb-8">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-emerald-600 rounded-lg flex items-center justify-center">
-                <Sprout className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-3xl font-bold text-slate-900">Crop Preparation System</h1>
-                <p className="text-slate-600 text-sm mt-1">Plan, track and optimize your farming operations</p>
-              </div>
-            </div>
-            <div className="flex gap-3">
-              {view !== 'addCrop' && (
-                <button
-                  onClick={() => setView('addCrop')}
-                  className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition text-sm font-medium"
-                >
-                  <Plus className="w-4 h-4" />
-                  Add Crop
-                </button>
-              )}
-              {crops.length > 0 && view !== 'schedule' && (
-                <button
-                  onClick={() => setView('schedule')}
-                  className="flex items-center gap-2 px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-800 transition text-sm font-medium"
-                >
-                  <Calendar className="w-4 h-4" />
-                  Schedule
-                </button>
-              )}
-            </div>
-          </div>
-        </div> */}
-
-        {/* Add Crop View */}
         {view === 'addCrop' && (
           <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-8">
             <h2 className="text-2xl font-bold text-slate-900 mb-6 flex items-center gap-2">
@@ -382,7 +363,7 @@ const CropPreparation = () => {
                 <label className="block text-sm font-semibold text-slate-700 mb-2">Crop Type *</label>
                 <select
                   value={cropForm.type}
-                  onChange={(e) => setCropForm({ ...cropForm, type: e.target.value, variety: '' })}
+                  onChange={(e) => setCropForm({ ...cropForm, type: e.target.value, variety: '', locationId: '' })}
                   className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition"
                 >
                   <option value="">Select crop type</option>
@@ -432,6 +413,22 @@ const CropPreparation = () => {
                       ))}
                     </select>
                   </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">Select Location *</label>
+                    <select
+                      value={cropForm.locationId}
+                      onChange={(e) => setCropForm({ ...cropForm, locationId: e.target.value })}
+                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition"
+                    >
+                      <option value="">Choose a location...</option>
+                      {locations.map(location => (
+                        <option key={location.id} value={location.id}>
+                          {location.name} - {location.areaSqm} sqm
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </>
               )}
 
@@ -446,7 +443,7 @@ const CropPreparation = () => {
                 )}
                 <button
                   onClick={handleAddCrop}
-                  disabled={!cropForm.type || !cropForm.variety}
+                  disabled={!cropForm.type || !cropForm.variety || !cropForm.locationId}
                   className="px-6 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Save Crop
@@ -478,10 +475,25 @@ const CropPreparation = () => {
                   <div key={crop.id} className="border border-slate-200 rounded-lg p-6 hover:shadow-md transition bg-slate-50">
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1">
-                        <h3 className="text-lg font-bold text-slate-900">
-                          {crop.type} - {crop.variety}
-                        </h3>
+                        <div className="flex items-center justify-between mb-2">
+                          <h3 className="text-lg font-bold text-slate-900">
+                            {crop.type} - {crop.variety}
+                          </h3>
+                          <button
+                            onClick={() => handleStartPlanting(crop)}
+                            className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition font-medium text-sm whitespace-nowrap"
+                          >
+                            Add Planting
+                          </button>
+                        </div>
                         <p className="text-sm text-slate-600 italic mt-1">{crop.botanicalName}</p>
+                        {crop.location && (
+                          <div className="flex items-center gap-2 mt-2 text-sm text-slate-700">
+                            <MapPin className="w-4 h-4 text-emerald-600" />
+                            <span className="font-medium">{crop.location.name}</span>
+                            <span className="text-slate-500">({crop.location.areaSqm} sqm)</span>
+                          </div>
+                        )}
                         <div className="mt-4 grid grid-cols-4 gap-3">
                           <div className="bg-white rounded p-3 text-sm border border-slate-200">
                             <p className="text-slate-600 text-xs">Season</p>
@@ -500,13 +512,8 @@ const CropPreparation = () => {
                             <p className="font-semibold text-slate-900 text-xs">{crop.seedRate}</p>
                           </div>
                         </div>
+
                       </div>
-                      <button
-                        onClick={() => handleStartPlanting(crop)}
-                        className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition font-medium text-sm whitespace-nowrap"
-                      >
-                        Add Planting
-                      </button>
                     </div>
                   </div>
                 ))}
@@ -531,105 +538,123 @@ const CropPreparation = () => {
             {/* Progress Steps */}
             <div className="flex items-center justify-center mb-8">
               <div className="flex items-center gap-3 mx-3">
-                <div className={`flex items-center justify-center w-10 h-10 rounded-full font-semibold text-sm ${
-                  step >= 1 ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-600'
-                }`}>
+                <div className={`flex items-center justify-center w-10 h-10 rounded-full font-semibold text-sm ${step >= 1 ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-600'
+                  }`}>
                   1
                 </div>
-                <span className="text-sm font-bold text-slate-700">Location</span>
+                <span className="text-sm font-bold text-slate-700">Cost Overview</span>
               </div>
               <div className={`w-12 h-1 ${step >= 2 ? 'bg-emerald-600' : 'bg-slate-200'}`} />
               <div className="flex items-center gap-3">
-                <div className={`flex items-center justify-center w-10 h-10 rounded-full font-semibold text-sm ${
-                  step >= 2 ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-600'
-                }`}>
+                <div className={`flex items-center justify-center w-10 h-10 rounded-full font-semibold text-sm ${step >= 2 ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-600'
+                  }`}>
                   2
                 </div>
                 <span className="text-sm font-bold text-slate-700">Details</span>
               </div>
             </div>
 
-            {/* Step 1: Select Location */}
+            {/* Step 1: Cost Breakdown */}
             {step === 1 && (
               <div className="space-y-6">
-                <div className="bg-slate-50 border border-slate-200 rounded-lg p-6">
-                  <div className="flex gap-4">
-                    <div className="w-12 h-12 bg-emerald-600 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <span className="text-xl font-bold text-white">{selectedCrop.type.substring(0, 2)}</span>
+                {/* Cost Breakdown */}
+                {selectedCrop.cost && (
+                  <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-8 border-2 border-blue-200 shadow-lg">
+                    <h3 className="text-2xl font-bold text-slate-900 mb-6 flex items-center gap-3">
+                      <TrendingUp className="w-8 h-8 text-blue-600" />
+                      Cost Breakdown Analysis
+                    </h3>
+
+                    {/* Table Header */}
+                    <div className="bg-gradient-to-r from-emerald-600 to-blue-600 rounded-lg overflow-hidden mb-2">
+                      <div className="grid grid-cols-12 gap-4 p-6 text-white font-bold">
+                        <div className="col-span-4">Cost Category</div>
+                        <div className="col-span-4 text-right">Per Acre (Rs.)</div>
+                        <div className="col-span-4 text-right">Total for All Acres (Rs.)</div>
+                      </div>
                     </div>
-                    <div className="flex-1">
-                      <h3 className="text-lg font-bold text-slate-900">{selectedCrop.type} - {selectedCrop.variety}</h3>
-                      <p className="text-sm text-slate-600 italic">{selectedCrop.botanicalName}</p>
-                      <div className="mt-3 grid grid-cols-3 gap-3">
-                        <div className="bg-white rounded p-2 text-sm border border-slate-200">
-                          <p className="text-slate-600 text-xs">Season</p>
-                          <p className="font-semibold text-slate-900">{selectedCrop.season}</p>
+
+                    {/* Cost Items */}
+                    <div className="space-y-2 mb-4">
+                      {costItems.map((item, idx) => (
+                        <div
+                          key={item.key}
+                          className={`grid grid-cols-12 gap-4 p-5 rounded-lg transition-all hover:shadow-md ${idx % 2 === 0
+                            ? 'bg-white border border-blue-100'
+                            : 'bg-gradient-to-r from-blue-50 to-indigo-50 border border-indigo-100'
+                            }`}
+                        >
+                          {/* Category */}
+                          <div className="col-span-4 flex items-center gap-3">
+                            <span className="text-3xl">{item.icon}</span>
+                            <div>
+                              <p className="font-semibold text-slate-900">{item.label}</p>
+                              <p className="text-xs text-slate-500">{item.key}</p>
+                            </div>
+                          </div>
+
+                          {/* Per Acre */}
+                          <div className="col-span-4 flex items-center justify-end pr-4">
+                            <div className="text-right">
+                              <p className="text-lg font-bold text-emerald-600">
+                                Rs. {selectedCrop.cost.per_acre[item.key].toLocaleString('en-PK')}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Total for All Acres */}
+                          <div className="col-span-4 flex items-center justify-end">
+                            <div className="bg-gradient-to-l from-emerald-100 to-blue-100 px-6 py-4 rounded-lg border-2 border-emerald-300 w-full text-right">
+                              <p className="text-lg font-bold text-emerald-700">
+                                Rs. {selectedCrop.cost.total_for_all_acres[item.key].toLocaleString('en-PK')}
+                              </p>
+                            </div>
+                          </div>
                         </div>
-                        <div className="bg-white rounded p-2 text-sm border border-slate-200">
-                          <p className="text-slate-600 text-xs">Maturity</p>
-                          <p className="font-semibold text-slate-900">{selectedCrop.daysToMaturity} days</p>
+                      ))}
+                    </div>
+
+                    {/* Total Row */}
+                    <div className="bg-gradient-to-r from-emerald-600 to-blue-600 rounded-lg overflow-hidden mt-6">
+                      <div className="grid grid-cols-12 gap-4 p-6 text-white font-bold">
+                        <div className="col-span-4 text-lg">Total Cost of Production</div>
+                        <div className="col-span-4 text-right text-2xl">
+                          Rs. {selectedCrop.cost.per_acre.total_cost_of_production.toLocaleString('en-PK')}
                         </div>
-                        <div className="bg-white rounded p-2 text-sm border border-slate-200">
-                          <p className="text-slate-600 text-xs">Seed Rate</p>
-                          <p className="font-semibold text-slate-900 text-xs">{selectedCrop.seedRate}</p>
+                        <div className="col-span-4 text-right text-2xl">
+                          Rs. {selectedCrop.cost.total_for_all_acres.total_cost_of_production.toLocaleString('en-PK')}
                         </div>
                       </div>
                     </div>
                   </div>
-                </div>
+                )}
 
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">Select Field Location *</label>
-                  <select
-                    value={plantingForm.locationId}
-                    onChange={(e) => setPlantingForm({ ...plantingForm, locationId: e.target.value })}
-                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition"
-                  >
-                    <option value="">Choose a farm...</option>
-                    {getAvailableLocations().map(location => (
-                      <option key={location.id} value={location.id}>
-                        {location.name} - {location.areaSqm} sqm
-                      </option>
-                    ))}
-                  </select>
-                  {getAvailableLocations().length === 0 && (
-                    <p className="text-sm text-red-600 mt-2 bg-red-50 p-3 rounded-lg">
-                      ⚠️ All locations are currently planted. Harvest before replanting.
-                    </p>
-                  )}
-                </div>
-
-                {/* {plantingForm.locationId && (
-                  <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-2">Number of Plantings</label>
-                    <input
-                      type="number"
-                      min="1"
-                      max="5"
-                      value={plantingForm.numPlantings}
-                      onChange={(e) => setPlantingForm({ ...plantingForm, numPlantings: parseInt(e.target.value) || 1 })}
-                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition"
-                    />
-                  </div>
-                )} */}
-
+                {/* Action Buttons */}
                 <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
                   <button
                     onClick={() => setView('cropList')}
-                    className="px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-50 transition font-medium text-sm"
+                    className="px-6 py-2 border-2 border-slate-300 rounded-lg hover:bg-slate-50 transition font-medium text-sm text-slate-700"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={() => setStep(2)}
-                    disabled={!plantingForm.locationId}
-                    className="px-6 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-6 py-2 bg-gradient-to-r from-emerald-600 to-blue-600 text-white rounded-lg hover:shadow-lg transition font-medium text-sm"
                   >
-                    Continue
+                    Continue to Details
                   </button>
                 </div>
+
               </div>
             )}
+
+
+
+
+
+
+
+
 
             {/* Step 2: Cultivation & Harvest Details */}
             {step === 2 && (
@@ -637,8 +662,6 @@ const CropPreparation = () => {
                 <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
                   <p className="text-sm text-emerald-800 font-medium">✓ Auto-populated planting details for {selectedCrop.type}</p>
                 </div>
-
-                {/* Cultivation Details */}
                 <div className="bg-slate-50 border border-slate-200 rounded-lg p-6">
                   <h3 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
                     <Sprout className="w-5 h-5 text-emerald-600" />
