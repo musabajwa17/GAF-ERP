@@ -68,7 +68,7 @@ export default function Sidebar() {
       color: "emerald",
       items: [
         { name: "Land Registration", icon: Layers },
-        { name: "My Lands", icon: MapPin },
+       // { name: "My Lands", icon: MapPin },
         { name: "Land Preparation", icon: AreaChartIcon },
         { name: "Crop Planner", icon: FileText },
       ],
@@ -339,7 +339,7 @@ export default function Sidebar() {
                     {(() => {
                       const map = {
                         Dashboard: Layers,
-                        "My Lands": MapPin,
+                        //"My Lands": MapPin,
                         "Land Registration": Layers,
                         "Soil Health": Droplet,
                         "Crop Planner": FileText,
@@ -347,7 +347,7 @@ export default function Sidebar() {
                         "Labor Management": Users,
                         "Weather Forecast": Cloud,
                         "Crop Management": Layers,
-                        Inventory: Package,
+                        "Inventory": Package,
                         "Pest Monitoring": Bug,
                         "Land Preparation": LandPlot,
                         "Harvest Scheduling": TrendingUp,
@@ -367,7 +367,7 @@ export default function Sidebar() {
                     {(() => {
                       const map = {
                         Dashboard: ["Dashboard", "Overview and quick insights"],
-                        "My Lands": ["My Lands", "View and manage your lands"],
+                    //    "My Lands": ["My Lands", "View and manage your lands"],
                         "Land Registration": [
                           "Land Registration",
                           "Draw and manage your agricultural fields",
@@ -503,8 +503,8 @@ export default function Sidebar() {
                     ? localStorage.getItem("selected")
                     : selected;
                 switch (selectedItem) {
-                  case "My Lands":
-                    return <Fields />;
+                  //case "My Lands":
+                   // return <Fields />;
                   case "Land Registration":
                     return <FieldMapping />;
                   case "Soil Health":
