@@ -30,7 +30,7 @@ import dynamic from "next/dynamic";
 
 // Leaflet map must only render on client
 const FieldMapping = dynamic(
-  () => import("@/components/dashboard/FieldMapping"),
+  () => import("@/components/dashboard/FieldMapping.jsx"),
   { ssr: false }
 );
 import Content from "../dashboard/Content";
