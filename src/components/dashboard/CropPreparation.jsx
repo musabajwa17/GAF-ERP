@@ -219,7 +219,7 @@
 //     // Calculate total used area
 //     const total = selectedCrops.reduce((sum, crop) => sum + (Number(crop.area) || 0), 0);
 //     setTotalUsedArea(total);
-    
+
 //     // Update available acres based on selected crops
 //     if (selectedCrops.length > 0 && selectedCrops[0].cropType) {
 //       const cropData = CROP_TYPES[selectedCrops[0].cropType];
@@ -227,7 +227,7 @@
 //         setAvailableAcres(cropData.totalAcres);
 //       }
 //     }
-    
+
 //     // Clear validation errors when crops change
 //     setValidationErrors([]);
 //   }, [selectedCrops]);
@@ -280,7 +280,7 @@
 //   const handleCropChange = (index, field, value) => {
 //     const updatedCrops = [...selectedCrops];
 //     updatedCrops[index] = { ...updatedCrops[index], [field]: value };
-    
+
 //     // If crop type changes, reset variety
 //     if (field === 'cropType') {
 //       updatedCrops[index].variety = '';
@@ -290,7 +290,7 @@
 //         setAvailableAcres(cropData.totalAcres);
 //       }
 //     }
-    
+
 //     setSelectedCrops(updatedCrops);
 //     // Clear validation errors for this field
 //     setValidationErrors(prev => prev.filter(error => !error.includes(`Crop ${index + 1}`)));
@@ -301,7 +301,7 @@
 //       alert('Maximum 3 crops allowed');
 //       return;
 //     }
-    
+
 //     const newId = selectedCrops.length > 0 ? Math.max(...selectedCrops.map(c => c.id)) + 1 : 1;
 //     setSelectedCrops([...selectedCrops, { 
 //       id: newId, 
@@ -317,20 +317,20 @@
 //       alert('At least one crop must be selected');
 //       return;
 //     }
-    
+
 //     const updatedCrops = selectedCrops.filter((_, i) => i !== index);
 //     setSelectedCrops(updatedCrops);
 //   };
 
 //   const validateForm = () => {
 //     const errors = [];
-    
+
 //     // Check if at least one crop is selected
 //     const hasCrops = selectedCrops.some(crop => crop.cropType);
 //     if (!hasCrops) {
 //       errors.push('Please select at least one crop');
 //     }
-    
+
 //     // Validate each crop
 //     selectedCrops.forEach((crop, index) => {
 //       if (crop.cropType) {
@@ -338,25 +338,25 @@
 //         if (!crop.area || crop.area <= 0) {
 //           errors.push(`Crop ${index + 1}: Please enter a valid area (greater than 0)`);
 //         }
-        
+
 //         // Validate area doesn't exceed available acres
 //         const cropData = CROP_TYPES[crop.cropType];
 //         if (cropData && crop.area > cropData.totalAcres) {
 //           errors.push(`Crop ${index + 1}: Area cannot exceed ${cropData.totalAcres} acres`);
 //         }
-        
+
 //         // Validate variety
 //         if (!crop.variety) {
 //           errors.push(`Crop ${index + 1}: Please select a variety`);
 //         }
-        
+
 //         // Validate location
 //         if (!crop.locationId) {
 //           errors.push(`Crop ${index + 1}: Please select a location`);
 //         }
 //       }
 //     });
-    
+
 //     setValidationErrors(errors);
 //     return errors.length === 0;
 //   };
@@ -373,7 +373,7 @@
 //   const handleSavePlan = () => {
 //     if (validateForm()) {
 //       const planName = prompt('Enter a name for this crop plan:', `${selectedSeason} Crop Plan ${new Date().toLocaleDateString()}`);
-      
+
 //       if (planName) {
 //         const plan = {
 //           id: Date.now(),
@@ -386,10 +386,10 @@
 //           expectedRevenue: calculateTotalRevenue(),
 //           expectedProfit: calculateTotalProfit()
 //         };
-        
+
 //         const updatedPlans = [...savedPlans, plan];
 //         setSavedPlans(updatedPlans);
-        
+
 //         alert(`Plan "${planName}" saved successfully!`);
 //       }
 //     }
@@ -399,7 +399,7 @@
 //     if (validateForm()) {
 //       // Show success message
 //       alert('Crop plan submitted successfully!');
-      
+
 //       // Save to localStorage as recent submission
 //       const submission = {
 //         id: Date.now(),
@@ -411,12 +411,12 @@
 //         expectedRevenue: calculateTotalRevenue(),
 //         expectedProfit: calculateTotalProfit()
 //       };
-      
+
 //       const recentSubmissions = JSON.parse(localStorage.getItem('recentSubmissions') || '[]');
 //       recentSubmissions.unshift(submission);
 //       if (recentSubmissions.length > 10) recentSubmissions.pop();
 //       localStorage.setItem('recentSubmissions', JSON.stringify(recentSubmissions));
-      
+
 //       // Reset form
 //       setSelectedCrops([{ id: 1, cropType: '', area: 0, variety: '', locationId: '' }]);
 //       setView('planning');
@@ -425,18 +425,18 @@
 
 //   const calculateCosts = (cropType, area) => {
 //     if (!cropType || !CROP_TYPES[cropType]) return { totalCost: 0, details: {} };
-    
+
 //     const cropData = CROP_TYPES[cropType];
 //     const details = {};
 //     let totalCost = 0;
-    
+
 //     Object.entries(cropData.costPerAcre).forEach(([key, value]) => {
 //       details[key] = value * area;
 //       if (key === 'total_cost_of_production') {
 //         totalCost = details[key];
 //       }
 //     });
-    
+
 //     return { totalCost, details };
 //   };
 
@@ -449,7 +449,7 @@
 //       'Rice': 120000,
 //       'Cotton': 180000
 //     };
-    
+
 //     return revenuePerAcre[cropType] ? revenuePerAcre[cropType] * area : 0;
 //   };
 
@@ -497,7 +497,7 @@
 //     }
 
 //     const headers = ['Crop', 'Area (acres)', 'Variety', 'Location', 'Total Cost (Rs.)', 'Expected Revenue (Rs.)', 'Gross Profit (Rs.)', 'Margin %'];
-    
+
 //     const rows = selectedCrops.filter(c => c.cropType).map(crop => {
 //       const area = Number(crop.area) || 0;
 //       const { totalCost } = calculateCosts(crop.cropType, area);
@@ -505,7 +505,7 @@
 //       const profit = calculateProfit(crop.cropType, area);
 //       const margin = revenue > 0 ? ((profit / revenue) * 100).toFixed(2) : 0;
 //       const location = locations.find(l => l.id === parseInt(crop.locationId));
-      
+
 //       return [
 //         crop.cropType,
 //         area,
@@ -895,7 +895,7 @@
 //                       const profit = calculateProfit(crop.cropType, area);
 //                       const margin = revenue > 0 ? ((profit / revenue) * 100).toFixed(2) : 0;
 //                       const location = locations.find(l => l.id === parseInt(crop.locationId));
-                      
+
 //                       return (
 //                         <tr key={index} className="hover:bg-slate-50 transition">
 //                           <td className="px-6 py-4">
@@ -947,7 +947,7 @@
 //                       );
 //                     })
 //                   }
-                  
+
 //                   {/* Consolidated Row - Only show if multiple crops */}
 //                   {selectedCrops.filter(c => c.cropType).length > 1 && (
 //                     <tr className="bg-slate-800 text-white font-bold">
@@ -987,7 +987,7 @@
 //                 {selectedCrops.filter(c => c.cropType).map((crop, index) => {
 //                   const area = Number(crop.area) || 0;
 //                   const { details } = calculateCosts(crop.cropType, area);
-                  
+
 //                   return (
 //                     <div key={index} className="bg-white rounded-lg border border-slate-200 p-4">
 //                       <h4 className="font-bold text-slate-900 mb-3">{crop.cropType}</h4>
@@ -1205,7 +1205,7 @@ const CropPreparation = () => {
   const handleCropChange = (index, field, value) => {
     const updatedCrops = [...selectedCrops];
     updatedCrops[index] = { ...updatedCrops[index], [field]: value };
-    
+
     setSelectedCrops(updatedCrops);
     // Clear validation errors for this field
     setValidationErrors(prev => prev.filter(error => !error.includes(`Crop ${index + 1}`)));
@@ -1216,11 +1216,11 @@ const CropPreparation = () => {
       alert('Maximum 10 crops allowed');
       return;
     }
-    
+
     const newId = selectedCrops.length > 0 ? Math.max(...selectedCrops.map(c => c.id)) + 1 : 1;
-    setSelectedCrops([...selectedCrops, { 
-      id: newId, 
-      cropType: '', 
+    setSelectedCrops([...selectedCrops, {
+      id: newId,
+      cropType: '',
       area: 0
     }]);
   };
@@ -1230,19 +1230,19 @@ const CropPreparation = () => {
       alert('At least one crop must be selected');
       return;
     }
-    
+
     const updatedCrops = selectedCrops.filter((_, i) => i !== index);
     setSelectedCrops(updatedCrops);
   };
 
   const validateForm = () => {
     const errors = [];
-    
+
     // Check if at least 3 crops are selected
     if (selectedCrops.filter(c => c.cropType).length < 3) {
       errors.push('Please select at least 3 crops to view the table');
     }
-    
+
     // Validate each crop
     selectedCrops.forEach((crop, index) => {
       if (crop.cropType) {
@@ -1255,7 +1255,7 @@ const CropPreparation = () => {
         }
       }
     });
-    
+
     setValidationErrors(errors);
     return errors.length === 0;
   };
@@ -1277,65 +1277,65 @@ const CropPreparation = () => {
   const exportToCSV = () => {
     // Get first 3 crops for the table
     const tableCrops = selectedCrops.filter(c => c.cropType).slice(0, 3);
-    
+
     if (tableCrops.length < 3) {
       alert('Need at least 3 crops to export');
       return;
     }
 
     const headers = ['', tableCrops[0].cropType, tableCrops[1].cropType, tableCrops[2].cropType];
-    
+
     // Prepare rows based on your screenshot format
     const rows = [
-      ['Rabi 2025-26', 
-       `${tableCrops[0].area || 0} Acre | ${CROP_TYPES[tableCrops[0].cropType]?.totalAcres || 0}`, 
-       `${tableCrops[1].area || 0} Acre | ${CROP_TYPES[tableCrops[1].cropType]?.totalAcres || 0}`, 
-       `${tableCrops[2].area || 0} Acre | ${CROP_TYPES[tableCrops[2].cropType]?.totalAcres || 0}`],
-      
-      ['Land Prep', 
-       `${formatNumber(CROP_TYPES[tableCrops[0].cropType]?.costPerAcre.land_prep || 0)} | ${formatNumber((CROP_TYPES[tableCrops[0].cropType]?.costPerAcre.land_prep || 0) * (tableCrops[0].area || 0))}`, 
-       `${formatNumber(CROP_TYPES[tableCrops[1].cropType]?.costPerAcre.land_prep || 0)} | ${formatNumber((CROP_TYPES[tableCrops[1].cropType]?.costPerAcre.land_prep || 0) * (tableCrops[1].area || 0))}`, 
-       `${formatNumber(CROP_TYPES[tableCrops[2].cropType]?.costPerAcre.land_prep || 0)} | ${formatNumber((CROP_TYPES[tableCrops[2].cropType]?.costPerAcre.land_prep || 0) * (tableCrops[2].area || 0))}`],
-      
-      ['Seed', 
-       `${formatNumber(CROP_TYPES[tableCrops[0].cropType]?.costPerAcre.seed || 0)} | ${formatNumber((CROP_TYPES[tableCrops[0].cropType]?.costPerAcre.seed || 0) * (tableCrops[0].area || 0))}`, 
-       `${formatNumber(CROP_TYPES[tableCrops[1].cropType]?.costPerAcre.seed || 0)} | ${formatNumber((CROP_TYPES[tableCrops[1].cropType]?.costPerAcre.seed || 0) * (tableCrops[1].area || 0))}`, 
-       `${formatNumber(CROP_TYPES[tableCrops[2].cropType]?.costPerAcre.seed || 0)} | ${formatNumber((CROP_TYPES[tableCrops[2].cropType]?.costPerAcre.seed || 0) * (tableCrops[2].area || 0))}`],
-      
-      ['Seed Treatment', 
-       `${formatNumber(CROP_TYPES[tableCrops[0].cropType]?.costPerAcre.seed_treatment || 0)} | ${formatNumber((CROP_TYPES[tableCrops[0].cropType]?.costPerAcre.seed_treatment || 0) * (tableCrops[0].area || 0))}`, 
-       `${formatNumber(CROP_TYPES[tableCrops[1].cropType]?.costPerAcre.seed_treatment || 0)} | ${formatNumber((CROP_TYPES[tableCrops[1].cropType]?.costPerAcre.seed_treatment || 0) * (tableCrops[1].area || 0))}`, 
-       `${formatNumber(CROP_TYPES[tableCrops[2].cropType]?.costPerAcre.seed_treatment || 0)} | ${formatNumber((CROP_TYPES[tableCrops[2].cropType]?.costPerAcre.seed_treatment || 0) * (tableCrops[2].area || 0))}`],
-      
-      ['Sowing Charges', 
-       `${formatNumber(CROP_TYPES[tableCrops[0].cropType]?.costPerAcre.sowing_charges || 0)} | ${formatNumber((CROP_TYPES[tableCrops[0].cropType]?.costPerAcre.sowing_charges || 0) * (tableCrops[0].area || 0))}`, 
-       `${formatNumber(CROP_TYPES[tableCrops[1].cropType]?.costPerAcre.sowing_charges || 0)} | ${formatNumber((CROP_TYPES[tableCrops[1].cropType]?.costPerAcre.sowing_charges || 0) * (tableCrops[1].area || 0))}`, 
-       `${formatNumber(CROP_TYPES[tableCrops[2].cropType]?.costPerAcre.sowing_charges || 0)} | ${formatNumber((CROP_TYPES[tableCrops[2].cropType]?.costPerAcre.sowing_charges || 0) * (tableCrops[2].area || 0))}`],
-      
-      ['Irrigation', 
-       `${formatNumber(CROP_TYPES[tableCrops[0].cropType]?.costPerAcre.irrigation || 0)} | ${formatNumber((CROP_TYPES[tableCrops[0].cropType]?.costPerAcre.irrigation || 0) * (tableCrops[0].area || 0))}`, 
-       `${formatNumber(CROP_TYPES[tableCrops[1].cropType]?.costPerAcre.irrigation || 0)} | ${formatNumber((CROP_TYPES[tableCrops[1].cropType]?.costPerAcre.irrigation || 0) * (tableCrops[1].area || 0))}`, 
-       `${formatNumber(CROP_TYPES[tableCrops[2].cropType]?.costPerAcre.irrigation || 0)} | ${formatNumber((CROP_TYPES[tableCrops[2].cropType]?.costPerAcre.irrigation || 0) * (tableCrops[2].area || 0))}`],
-      
-      ['Fertilizers', 
-       `${formatNumber(CROP_TYPES[tableCrops[0].cropType]?.costPerAcre.fertilizers || 0)} | ${formatNumber((CROP_TYPES[tableCrops[0].cropType]?.costPerAcre.fertilizers || 0) * (tableCrops[0].area || 0))}`, 
-       `${formatNumber(CROP_TYPES[tableCrops[1].cropType]?.costPerAcre.fertilizers || 0)} | ${formatNumber((CROP_TYPES[tableCrops[1].cropType]?.costPerAcre.fertilizers || 0) * (tableCrops[1].area || 0))}`, 
-       `${formatNumber(CROP_TYPES[tableCrops[2].cropType]?.costPerAcre.fertilizers || 0)} | ${formatNumber((CROP_TYPES[tableCrops[2].cropType]?.costPerAcre.fertilizers || 0) * (tableCrops[2].area || 0))}`],
-      
-      ['Crop Protection', 
-       `${formatNumber(CROP_TYPES[tableCrops[0].cropType]?.costPerAcre.crop_protection || 0)} | ${formatNumber((CROP_TYPES[tableCrops[0].cropType]?.costPerAcre.crop_protection || 0) * (tableCrops[0].area || 0))}`, 
-       `${formatNumber(CROP_TYPES[tableCrops[1].cropType]?.costPerAcre.crop_protection || 0)} | ${formatNumber((CROP_TYPES[tableCrops[1].cropType]?.costPerAcre.crop_protection || 0) * (tableCrops[1].area || 0))}`, 
-       `${formatNumber(CROP_TYPES[tableCrops[2].cropType]?.costPerAcre.crop_protection || 0)} | ${formatNumber((CROP_TYPES[tableCrops[2].cropType]?.costPerAcre.crop_protection || 0) * (tableCrops[2].area || 0))}`],
-      
-      ['Harvesting & TPT', 
-       `${formatNumber(CROP_TYPES[tableCrops[0].cropType]?.costPerAcre.harvesting_tpt || 0)} | ${formatNumber((CROP_TYPES[tableCrops[0].cropType]?.costPerAcre.harvesting_tpt || 0) * (tableCrops[0].area || 0))}`, 
-       `${formatNumber(CROP_TYPES[tableCrops[1].cropType]?.costPerAcre.harvesting_tpt || 0)} | ${formatNumber((CROP_TYPES[tableCrops[1].cropType]?.costPerAcre.harvesting_tpt || 0) * (tableCrops[1].area || 0))}`, 
-       `${formatNumber(CROP_TYPES[tableCrops[2].cropType]?.costPerAcre.harvesting_tpt || 0)} | ${formatNumber((CROP_TYPES[tableCrops[2].cropType]?.costPerAcre.harvesting_tpt || 0) * (tableCrops[2].area || 0))}`],
-      
-      ['Total Cost of Production', 
-       `${formatNumber(CROP_TYPES[tableCrops[0].cropType]?.costPerAcre.total_cost_of_production || 0)} | ${formatNumber((CROP_TYPES[tableCrops[0].cropType]?.costPerAcre.total_cost_of_production || 0) * (tableCrops[0].area || 0))}`, 
-       `${formatNumber(CROP_TYPES[tableCrops[1].cropType]?.costPerAcre.total_cost_of_production || 0)} | ${formatNumber((CROP_TYPES[tableCrops[1].cropType]?.costPerAcre.total_cost_of_production || 0) * (tableCrops[1].area || 0))}`, 
-       `${formatNumber(CROP_TYPES[tableCrops[2].cropType]?.costPerAcre.total_cost_of_production || 0)} | ${formatNumber((CROP_TYPES[tableCrops[2].cropType]?.costPerAcre.total_cost_of_production || 0) * (tableCrops[2].area || 0))}`],
+      ['Rabi 2025-26',
+        `${tableCrops[0].area || 0} Acre | ${CROP_TYPES[tableCrops[0].cropType]?.totalAcres || 0}`,
+        `${tableCrops[1].area || 0} Acre | ${CROP_TYPES[tableCrops[1].cropType]?.totalAcres || 0}`,
+        `${tableCrops[2].area || 0} Acre | ${CROP_TYPES[tableCrops[2].cropType]?.totalAcres || 0}`],
+
+      ['Land Prep',
+        `${formatNumber(CROP_TYPES[tableCrops[0].cropType]?.costPerAcre.land_prep || 0)} | ${formatNumber((CROP_TYPES[tableCrops[0].cropType]?.costPerAcre.land_prep || 0) * (tableCrops[0].area || 0))}`,
+        `${formatNumber(CROP_TYPES[tableCrops[1].cropType]?.costPerAcre.land_prep || 0)} | ${formatNumber((CROP_TYPES[tableCrops[1].cropType]?.costPerAcre.land_prep || 0) * (tableCrops[1].area || 0))}`,
+        `${formatNumber(CROP_TYPES[tableCrops[2].cropType]?.costPerAcre.land_prep || 0)} | ${formatNumber((CROP_TYPES[tableCrops[2].cropType]?.costPerAcre.land_prep || 0) * (tableCrops[2].area || 0))}`],
+
+      ['Seed',
+        `${formatNumber(CROP_TYPES[tableCrops[0].cropType]?.costPerAcre.seed || 0)} | ${formatNumber((CROP_TYPES[tableCrops[0].cropType]?.costPerAcre.seed || 0) * (tableCrops[0].area || 0))}`,
+        `${formatNumber(CROP_TYPES[tableCrops[1].cropType]?.costPerAcre.seed || 0)} | ${formatNumber((CROP_TYPES[tableCrops[1].cropType]?.costPerAcre.seed || 0) * (tableCrops[1].area || 0))}`,
+        `${formatNumber(CROP_TYPES[tableCrops[2].cropType]?.costPerAcre.seed || 0)} | ${formatNumber((CROP_TYPES[tableCrops[2].cropType]?.costPerAcre.seed || 0) * (tableCrops[2].area || 0))}`],
+
+      ['Seed Treatment',
+        `${formatNumber(CROP_TYPES[tableCrops[0].cropType]?.costPerAcre.seed_treatment || 0)} | ${formatNumber((CROP_TYPES[tableCrops[0].cropType]?.costPerAcre.seed_treatment || 0) * (tableCrops[0].area || 0))}`,
+        `${formatNumber(CROP_TYPES[tableCrops[1].cropType]?.costPerAcre.seed_treatment || 0)} | ${formatNumber((CROP_TYPES[tableCrops[1].cropType]?.costPerAcre.seed_treatment || 0) * (tableCrops[1].area || 0))}`,
+        `${formatNumber(CROP_TYPES[tableCrops[2].cropType]?.costPerAcre.seed_treatment || 0)} | ${formatNumber((CROP_TYPES[tableCrops[2].cropType]?.costPerAcre.seed_treatment || 0) * (tableCrops[2].area || 0))}`],
+
+      ['Sowing Charges',
+        `${formatNumber(CROP_TYPES[tableCrops[0].cropType]?.costPerAcre.sowing_charges || 0)} | ${formatNumber((CROP_TYPES[tableCrops[0].cropType]?.costPerAcre.sowing_charges || 0) * (tableCrops[0].area || 0))}`,
+        `${formatNumber(CROP_TYPES[tableCrops[1].cropType]?.costPerAcre.sowing_charges || 0)} | ${formatNumber((CROP_TYPES[tableCrops[1].cropType]?.costPerAcre.sowing_charges || 0) * (tableCrops[1].area || 0))}`,
+        `${formatNumber(CROP_TYPES[tableCrops[2].cropType]?.costPerAcre.sowing_charges || 0)} | ${formatNumber((CROP_TYPES[tableCrops[2].cropType]?.costPerAcre.sowing_charges || 0) * (tableCrops[2].area || 0))}`],
+
+      ['Irrigation',
+        `${formatNumber(CROP_TYPES[tableCrops[0].cropType]?.costPerAcre.irrigation || 0)} | ${formatNumber((CROP_TYPES[tableCrops[0].cropType]?.costPerAcre.irrigation || 0) * (tableCrops[0].area || 0))}`,
+        `${formatNumber(CROP_TYPES[tableCrops[1].cropType]?.costPerAcre.irrigation || 0)} | ${formatNumber((CROP_TYPES[tableCrops[1].cropType]?.costPerAcre.irrigation || 0) * (tableCrops[1].area || 0))}`,
+        `${formatNumber(CROP_TYPES[tableCrops[2].cropType]?.costPerAcre.irrigation || 0)} | ${formatNumber((CROP_TYPES[tableCrops[2].cropType]?.costPerAcre.irrigation || 0) * (tableCrops[2].area || 0))}`],
+
+      ['Fertilizers',
+        `${formatNumber(CROP_TYPES[tableCrops[0].cropType]?.costPerAcre.fertilizers || 0)} | ${formatNumber((CROP_TYPES[tableCrops[0].cropType]?.costPerAcre.fertilizers || 0) * (tableCrops[0].area || 0))}`,
+        `${formatNumber(CROP_TYPES[tableCrops[1].cropType]?.costPerAcre.fertilizers || 0)} | ${formatNumber((CROP_TYPES[tableCrops[1].cropType]?.costPerAcre.fertilizers || 0) * (tableCrops[1].area || 0))}`,
+        `${formatNumber(CROP_TYPES[tableCrops[2].cropType]?.costPerAcre.fertilizers || 0)} | ${formatNumber((CROP_TYPES[tableCrops[2].cropType]?.costPerAcre.fertilizers || 0) * (tableCrops[2].area || 0))}`],
+
+      ['Crop Protection',
+        `${formatNumber(CROP_TYPES[tableCrops[0].cropType]?.costPerAcre.crop_protection || 0)} | ${formatNumber((CROP_TYPES[tableCrops[0].cropType]?.costPerAcre.crop_protection || 0) * (tableCrops[0].area || 0))}`,
+        `${formatNumber(CROP_TYPES[tableCrops[1].cropType]?.costPerAcre.crop_protection || 0)} | ${formatNumber((CROP_TYPES[tableCrops[1].cropType]?.costPerAcre.crop_protection || 0) * (tableCrops[1].area || 0))}`,
+        `${formatNumber(CROP_TYPES[tableCrops[2].cropType]?.costPerAcre.crop_protection || 0)} | ${formatNumber((CROP_TYPES[tableCrops[2].cropType]?.costPerAcre.crop_protection || 0) * (tableCrops[2].area || 0))}`],
+
+      ['Harvesting & TPT',
+        `${formatNumber(CROP_TYPES[tableCrops[0].cropType]?.costPerAcre.harvesting_tpt || 0)} | ${formatNumber((CROP_TYPES[tableCrops[0].cropType]?.costPerAcre.harvesting_tpt || 0) * (tableCrops[0].area || 0))}`,
+        `${formatNumber(CROP_TYPES[tableCrops[1].cropType]?.costPerAcre.harvesting_tpt || 0)} | ${formatNumber((CROP_TYPES[tableCrops[1].cropType]?.costPerAcre.harvesting_tpt || 0) * (tableCrops[1].area || 0))}`,
+        `${formatNumber(CROP_TYPES[tableCrops[2].cropType]?.costPerAcre.harvesting_tpt || 0)} | ${formatNumber((CROP_TYPES[tableCrops[2].cropType]?.costPerAcre.harvesting_tpt || 0) * (tableCrops[2].area || 0))}`],
+
+      ['Total Cost of Production',
+        `${formatNumber(CROP_TYPES[tableCrops[0].cropType]?.costPerAcre.total_cost_of_production || 0)} | ${formatNumber((CROP_TYPES[tableCrops[0].cropType]?.costPerAcre.total_cost_of_production || 0) * (tableCrops[0].area || 0))}`,
+        `${formatNumber(CROP_TYPES[tableCrops[1].cropType]?.costPerAcre.total_cost_of_production || 0)} | ${formatNumber((CROP_TYPES[tableCrops[1].cropType]?.costPerAcre.total_cost_of_production || 0) * (tableCrops[1].area || 0))}`,
+        `${formatNumber(CROP_TYPES[tableCrops[2].cropType]?.costPerAcre.total_cost_of_production || 0)} | ${formatNumber((CROP_TYPES[tableCrops[2].cropType]?.costPerAcre.total_cost_of_production || 0) * (tableCrops[2].area || 0))}`],
     ];
 
     let csvContent = "data:text/csv;charset=utf-8,";
@@ -1392,18 +1392,17 @@ const CropPreparation = () => {
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
                   <Leaf className="w-5 h-5 text-emerald-600" />
-                  Crop Selection (Minimum 3 crops required)
+                  Crop Selection
                 </h2>
                 <div className="text-sm text-slate-700">
-                  Selected: <span className="font-bold">{selectedCrops.filter(c => c.cropType).length} / 3+</span> crops
+                  Selected: <span className="font-bold">{selectedCrops.filter(c => c.cropType).length} / 3</span> crops
                 </div>
               </div>
 
               <div className="space-y-6">
                 {selectedCrops.map((crop, index) => (
-                  <div key={crop.id} className={`border-2 rounded-xl p-6 bg-gradient-to-r from-slate-50 to-white ${
-                    isCropComplete(crop) ? 'border-emerald-200' : 'border-slate-200'
-                  }`}>
+                  <div key={crop.id} className={`border-2 rounded-xl p-6 bg-gradient-to-r from-slate-50 to-white ${isCropComplete(crop) ? 'border-emerald-200' : 'border-slate-200'
+                    }`}>
                     <div className="flex justify-between items-center mb-4">
                       <div className="flex items-center gap-3">
                         <h3 className="font-bold text-slate-900">Crop #{index + 1}</h3>
@@ -1444,8 +1443,8 @@ const CropPreparation = () => {
                         <label className="block text-sm font-semibold text-slate-700 mb-2">
                           Area (acres) *
                           <span className="text-xs font-normal text-slate-500 ml-2">
-                            Max: {crop.cropType && CROP_TYPES[crop.cropType] 
-                              ? CROP_TYPES[crop.cropType].totalAcres.toLocaleString() 
+                            Max: {crop.cropType && CROP_TYPES[crop.cropType]
+                              ? CROP_TYPES[crop.cropType].totalAcres.toLocaleString()
                               : 'N/A'}
                           </span>
                         </label>
@@ -1454,8 +1453,8 @@ const CropPreparation = () => {
                           value={crop.area}
                           onChange={(e) => handleCropChange(index, 'area', e.target.value)}
                           min="0"
-                          max={crop.cropType && CROP_TYPES[crop.cropType] 
-                            ? CROP_TYPES[crop.cropType].totalAcres 
+                          max={crop.cropType && CROP_TYPES[crop.cropType]
+                            ? CROP_TYPES[crop.cropType].totalAcres
                             : 1000}
                           step="0.1"
                           className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition"
@@ -1511,11 +1510,11 @@ const CropPreparation = () => {
                     <div className="bg-white rounded-lg p-4 border border-slate-200">
                       <p className="text-slate-600 text-sm mb-1">Crops Selected</p>
                       <p className="text-2xl font-bold text-slate-900">
-                        {selectedCrops.filter(c => c.cropType).length} / 3+
+                        {selectedCrops.filter(c => c.cropType).length} / 3
                       </p>
-                      <p className="text-xs text-slate-500 mt-1">
+                      {/* <p className="text-xs text-slate-500 mt-1">
                         Minimum 3 required for table
-                      </p>
+                      </p> */}
                     </div>
                     <div className="bg-white rounded-lg p-4 border border-slate-200">
                       <p className="text-slate-600 text-sm mb-1">Total Area</p>
@@ -1533,14 +1532,13 @@ const CropPreparation = () => {
               <button
                 onClick={handleViewTable}
                 disabled={selectedCrops.filter(c => c.cropType).length < 3}
-                className={`px-8 py-3 rounded-lg transition font-medium flex items-center gap-3 text-lg ${
-                  selectedCrops.filter(c => c.cropType).length >= 3
-                    ? 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-lg'
-                    : 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                }`}
+                className={`px-8 py-3 rounded-lg transition font-medium flex items-center gap-3 text-lg ${selectedCrops.filter(c => c.cropType).length >= 3
+                  ? 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-lg'
+                  : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                  }`}
               >
                 <Table className="w-6 h-6" />
-                View Comparison Table (First 3 crops)
+                View Table
               </button>
             </div>
           </div>
@@ -1621,7 +1619,7 @@ const CropPreparation = () => {
                         const cropData = CROP_TYPES[crop.cropType];
                         const perAcre = cropData ? cropData.costPerAcre[item.key] || 0 : 0;
                         const total = perAcre * (Number(crop.area) || 0);
-                        
+
                         return (
                           <React.Fragment key={cropIndex}>
                             <td className="px-6 py-4 text-right border-r border-slate-200">
@@ -1649,7 +1647,7 @@ const CropPreparation = () => {
                       const cropData = CROP_TYPES[crop.cropType];
                       const perAcre = cropData ? cropData.costPerAcre.total_cost_of_production : 0;
                       const total = perAcre * (Number(crop.area) || 0);
-                      
+
                       return (
                         <React.Fragment key={cropIndex}>
                           <td className="px-6 py-4 text-right border-r border-emerald-200">

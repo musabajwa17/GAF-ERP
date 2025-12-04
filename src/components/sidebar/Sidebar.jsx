@@ -35,7 +35,6 @@ const FieldMapping = dynamic(
 );
 import Content from "../dashboard/Content";
 import SoilHealth from "../dashboard/SoilHealth";
-import ContractMapping from "../dashboard/ContractMapping";
 import IrrigationManagement from "../dashboard/IrrigationManagement";
 import Labormanagement from "../dashboard/Labormanagement";
 import InventaryManagement from "../dashboard/InventaryManagement";
@@ -67,10 +66,11 @@ export default function Sidebar() {
       icon: MapPin,
       color: "emerald",
       items: [
-        { name: "Land Registration", icon: Layers },
-       // { name: "My Lands", icon: MapPin },
-        { name: "Land Preparation", icon: AreaChartIcon },
         { name: "Crop Planner", icon: FileText },
+        { name: "Field Registration", icon: Layers }
+        // { name: "My Lands", icon: MapPin },
+        // { name: "Land Preparation", icon: AreaChartIcon },
+
       ],
     },
     {
@@ -136,38 +136,34 @@ export default function Sidebar() {
           <button
             onClick={() => handleStageClick(stage.name)}
             disabled={isLocked}
-            className={`group cursor-pointer w-full flex items-center justify-between px-4 py-3 rounded-lg text-sm font-semibold transition-all duration-300 ${
-              isLocked
-                ? "opacity-50 cursor-not-allowed bg-slate-100"
-                : isOpen
+            className={`group cursor-pointer w-full flex items-center justify-between px-4 py-3 rounded-lg text-sm font-semibold transition-all duration-300 ${isLocked
+              ? "opacity-50 cursor-not-allowed bg-slate-100"
+              : isOpen
                 ? "bg-gradient-to-r from-emerald-50 to-teal-50 shadow-md border-l-4 border-emerald-500"
                 : "hover:bg-slate-50 border-l-4 border-transparent"
-            }`}
+              }`}
           >
             <div className="flex items-center gap-3">
               <div
-                className={`p-2 rounded-lg transition-all duration-300 ${
-                  isLocked
-                    ? "bg-slate-200"
-                    : isOpen
+                className={`p-2 rounded-lg transition-all duration-300 ${isLocked
+                  ? "bg-slate-200"
+                  : isOpen
                     ? "bg-emerald-500 shadow-lg shadow-emerald-500/20"
                     : "bg-slate-200 group-hover:bg-emerald-100"
-                }`}
+                  }`}
               >
                 <StageIcon
-                  className={`w-4 h-4 ${
-                    isLocked
-                      ? "text-slate-400"
-                      : isOpen
+                  className={`w-4 h-4 ${isLocked
+                    ? "text-slate-400"
+                    : isOpen
                       ? "text-white"
                       : "text-slate-600 group-hover:text-emerald-600"
-                  }`}
+                    }`}
                 />
               </div>
               <span
-                className={`text-left text-sm ${
-                  isLocked ? "text-slate-400" : "text-slate-700"
-                }`}
+                className={`text-left text-sm ${isLocked ? "text-slate-400" : "text-slate-700"
+                  }`}
               >
                 {stage.name}
               </span>
@@ -182,17 +178,15 @@ export default function Sidebar() {
               </div>
             ) : (
               <ChevronDown
-                className={`w-4 h-4 text-slate-500 transition-transform duration-300 ${
-                  isOpen ? "rotate-180" : ""
-                }`}
+                className={`w-4 h-4 text-slate-500 transition-transform duration-300 ${isOpen ? "rotate-180" : ""
+                  }`}
               />
             )}
           </button>
 
           <div
-            className={`overflow-hidden transition-all duration-300 ease-in-out ${
-              isOpen ? "max-h-96 opacity-100 mt-2" : "max-h-0 opacity-0"
-            }`}
+            className={`overflow-hidden transition-all duration-300 ease-in-out ${isOpen ? "max-h-96 opacity-100 mt-2" : "max-h-0 opacity-0"
+              }`}
           >
             <div className="ml-4 pl-4 border-l-2 border-emerald-200 space-y-1">
               {stage.items.map((item, i) => {
@@ -203,18 +197,16 @@ export default function Sidebar() {
                   <button
                     key={i}
                     onClick={() => handleItemClick(item.name)}
-                    className={`group cursor-pointer w-full flex items-center gap-3 px-4 py-2.5 rounded-md text-sm transition-all duration-200 ${
-                      isSelected
-                        ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/30 font-medium"
-                        : "text-slate-600 hover:bg-emerald-50 hover:text-emerald-700"
-                    }`}
+                    className={`group cursor-pointer w-full flex items-center gap-3 px-4 py-2.5 rounded-md text-sm transition-all duration-200 ${isSelected
+                      ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/30 font-medium"
+                      : "text-slate-600 hover:bg-emerald-50 hover:text-emerald-700"
+                      }`}
                   >
                     <ItemIcon
-                      className={`w-4 h-4 transition-all duration-200 ${
-                        isSelected
-                          ? "text-white"
-                          : "text-slate-400 group-hover:text-emerald-500"
-                      }`}
+                      className={`w-4 h-4 transition-all duration-200 ${isSelected
+                        ? "text-white"
+                        : "text-slate-400 group-hover:text-emerald-500"
+                        }`}
                     />
                     <span>{item.name}</span>
                   </button>
@@ -340,7 +332,7 @@ export default function Sidebar() {
                       const map = {
                         Dashboard: Layers,
                         //"My Lands": MapPin,
-                        "Land Registration": Layers,
+                        "Field Registration": Layers,
                         "Soil Health": Droplet,
                         "Crop Planner": FileText,
                         "Irrigation Management": Droplet,
@@ -367,9 +359,9 @@ export default function Sidebar() {
                     {(() => {
                       const map = {
                         Dashboard: ["Dashboard", "Overview and quick insights"],
-                    //    "My Lands": ["My Lands", "View and manage your lands"],
-                        "Land Registration": [
-                          "Land Registration",
+                        //    "My Lands": ["My Lands", "View and manage your lands"],
+                        "Field Registration": [
+                          "Field Registration",
                           "Draw and manage your agricultural fields",
                         ],
                         "Soil Health": [
@@ -504,8 +496,8 @@ export default function Sidebar() {
                     : selected;
                 switch (selectedItem) {
                   //case "My Lands":
-                   // return <Fields />;
-                  case "Land Registration":
+                  // return <Fields />;
+                  case "Field Registration":
                     return <FieldMapping />;
                   case "Soil Health":
                     return <SoilHealth />;
@@ -545,7 +537,7 @@ export default function Sidebar() {
           </div>
         </main>
       </div>
-          
+
     </>
   );
 }
