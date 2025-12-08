@@ -8,9 +8,13 @@ import ContactUs from "../components/contact/ContactUs";
 import Footer from "../components/Footer";
 import EmpoweringFarmsCards from "../components/cards/EmpoweringFarmCards";
 import Partners from "../components/Partners";
+import ProtectedPage from "@/components/contact/ProtectedPage/AuthorizedPage";
+import GuestRoute from "@/components/contact/ProtectedPage/GuestRoute";
 export default function Home() {
   return (
     <div>
+      <GuestRoute>
+        
       <HeaderContext />
       <Header />
       <HeroSection />
@@ -21,6 +25,7 @@ export default function Home() {
       <AboutErp />
       <ContactUs />
       <Footer />
+      </GuestRoute>
     </div>
   );
 }

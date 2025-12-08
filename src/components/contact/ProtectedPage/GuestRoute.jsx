@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
-export default function GuestRoute({ children, redirectTo = "/dashboard/fields" }) {
+export default function GuestRoute({ children, redirectTo = "/dashboard" }) {
   const router = useRouter();
   const [authChecked, setAuthChecked] = useState(false);
 

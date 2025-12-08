@@ -20,12 +20,14 @@ import dynamic from 'next/dynamic';
 import 'leaflet/dist/leaflet.css';
 
 // Fix for default markers in Leaflet with Next.js
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-});
+if (typeof window !== 'undefined') {
+  delete L.Icon.Default.prototype._getIconUrl;
+  L.Icon.Default.mergeOptions({
+    iconUrl: 'https://cdn.jsdelivr.net/npm/leaflet@1.7.1/dist/images/marker-icon.png',
+    iconRetinaUrl: 'https://cdn.jsdelivr.net/npm/leaflet@1.7.1/dist/images/marker-icon-2x.png',
+    shadowUrl: 'https://cdn.jsdelivr.net/npm/leaflet@1.7.1/dist/images/marker-shadow.png',
+  });
+}
 
 // Dynamically import Leaflet components with no SSR
 const MapContainer = dynamic(
@@ -52,10 +54,74 @@ const Popup = dynamic(
   () => import('react-leaflet').then((mod) => mod.Popup),
   { ssr: false }
 );
-const useMap = dynamic(
-  () => import('react-leaflet').then((mod) => mod.useMap),
-  { ssr: false }
-);
+
+// Helper functions for shape calculations
+const calculateCentroid = (coordinates) => {
+  if (!coordinates || coordinates.length === 0) return null;
+  
+  let x = 0, y = 0;
+  let area = 0;
+  
+  // Ensure coordinates form a closed polygon
+  const coords = [...coordinates];
+  if (coords.length > 0 && coords[0] !== coords[coords.length - 1]) {
+    coords.push(coords[0]);
+  }
+  
+  for (let i = 0; i < coords.length - 1; i++) {
+    const x0 = coords[i].lng;
+    const y0 = coords[i].lat;
+    const x1 = coords[i + 1].lng;
+    const y1 = coords[i + 1].lat;
+    
+    const cross = (x0 * y1) - (x1 * y0);
+    area += cross;
+    x += (x0 + x1) * cross;
+    y += (y0 + y1) * cross;
+  }
+  
+  area /= 2;
+  const centroidX = x / (6 * area);
+  const centroidY = y / (6 * area);
+  
+  return { lat: centroidY, lng: centroidX };
+};
+
+const calculateRectangleCenter = (coordinates) => {
+  if (!coordinates || coordinates.length < 2) return null;
+  
+  // For rectangle, use first and third points
+  const point1 = coordinates[0];
+  const point2 = coordinates[2] || coordinates[1];
+  
+  return {
+    lat: (point1.lat + point2.lat) / 2,
+    lng: (point1.lng + point2.lng) / 2
+  };
+};
+
+const getShapeCenter = (shape) => {
+  if (!shape || !shape.coordinates || shape.coordinates.length === 0) {
+    return null;
+  }
+  
+  if (shape.type === 'rectangle' && shape.coordinates.length >= 4) {
+    return calculateRectangleCenter(shape.coordinates);
+  } else if (shape.type === 'polygon' || !shape.type) {
+    return calculateCentroid(shape.coordinates);
+  }
+  
+  // Fallback: simple average for other cases
+  const sum = shape.coordinates.reduce((acc, coord) => ({
+    lat: acc.lat + coord.lat,
+    lng: acc.lng + coord.lng
+  }), { lat: 0, lng: 0 });
+  
+  return {
+    lat: sum.lat / shape.coordinates.length,
+    lng: sum.lng / shape.coordinates.length
+  };
+};
 
 // Shape Details Modal Component
 function ShapeDetailsModal({ shape, isOpen, onClose, onSave }) {
@@ -102,7 +168,7 @@ function ShapeDetailsModal({ shape, isOpen, onClose, onSave }) {
             <X className="w-5 h-5" />
           </button>
         </div>
-        
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -113,11 +179,11 @@ function ShapeDetailsModal({ shape, isOpen, onClose, onSave }) {
               required
               className="w-full p-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200"
               value={formData.name}
-              onChange={(e) => setFormData({...formData, name: e.target.value})}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               placeholder="Enter field name"
             />
           </div>
-          
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Area
@@ -129,12 +195,12 @@ function ShapeDetailsModal({ shape, isOpen, onClose, onSave }) {
                 step="0.01"
                 className="flex-1 p-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200"
                 value={formData.area}
-                onChange={(e) => setFormData({...formData, area: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, area: e.target.value })}
               />
               <select
                 className="p-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200"
                 value={formData.unit}
-                onChange={(e) => setFormData({...formData, unit: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
               >
                 <option value="hectares">Hectares</option>
                 <option value="acres">Acres</option>
@@ -142,7 +208,7 @@ function ShapeDetailsModal({ shape, isOpen, onClose, onSave }) {
               </select>
             </div>
           </div>
-          
+
           <div className="bg-green-50 rounded-xl p-4 border border-green-100">
             <div className="grid grid-cols-2 gap-2 text-sm">
               <div>
@@ -155,7 +221,7 @@ function ShapeDetailsModal({ shape, isOpen, onClose, onSave }) {
               </div>
             </div>
           </div>
-          
+
           <div className="flex gap-3 pt-4">
             <button
               type="button"
@@ -177,12 +243,13 @@ function ShapeDetailsModal({ shape, isOpen, onClose, onSave }) {
   );
 }
 
-// Custom Drawing Tools Component
+// Custom Drawing Tools Component with proper marker placement
 function CustomDrawingTools({ onShapeCreated, farms, selectedFarm, onFarmSelect }) {
+  const { useMap } = require('react-leaflet');
+  const map = useMap();
   const [drawnShapes, setDrawnShapes] = useState([]);
   const [drawingMode, setDrawingMode] = useState(null);
   const [currentShape, setCurrentShape] = useState([]);
-  const map = useMap();
 
   // Load shapes from localStorage on component mount
   useEffect(() => {
@@ -196,16 +263,16 @@ function CustomDrawingTools({ onShapeCreated, farms, selectedFarm, onFarmSelect 
   // Function to calculate area in square meters
   const calculateArea = (coordinates) => {
     if (!coordinates || coordinates.length < 3) return 0;
-    
+
     let area = 0;
     const coords = coordinates;
-    
+
     for (let i = 0; i < coords.length - 1; i++) {
       const [x1, y1] = [coords[i].lng, coords[i].lat];
       const [x2, y2] = [coords[i + 1].lng, coords[i + 1].lat];
       area += (x1 * y2 - x2 * y1);
     }
-    
+
     return Math.abs(area) / 2;
   };
 
@@ -223,7 +290,7 @@ function CustomDrawingTools({ onShapeCreated, farms, selectedFarm, onFarmSelect 
       } else if (drawingMode === 'rectangle' && currentShape.length < 2) {
         const newShape = [...currentShape, newPoint];
         setCurrentShape(newShape);
-        
+
         if (newShape.length === 2) {
           const rectCoordinates = createRectangleCoordinates(newShape[0], newShape[1]);
           finishDrawing(rectCoordinates, 'rectangle');
@@ -237,6 +304,25 @@ function CustomDrawingTools({ onShapeCreated, farms, selectedFarm, onFarmSelect 
       map.off('click', handleMapClick);
     };
   }, [map, drawingMode, currentShape]);
+
+  // Zoom to selected farm when it changes
+  useEffect(() => {
+    if (selectedFarm && selectedFarm.coordinates && selectedFarm.coordinates.length > 0 && map) {
+      try {
+        const bounds = L.latLngBounds(
+          selectedFarm.coordinates.map(coord => [coord.lat, coord.lng])
+        );
+        map?.fitBounds(bounds, {
+          padding: [50, 50],
+          maxZoom: 17,
+          animate: true,
+          duration: 1
+        });
+      } catch (error) {
+        console.error('Error zooming to farm:', error);
+      }
+    }
+  }, [selectedFarm, map]);
 
   const createRectangleCoordinates = (point1, point2) => {
     return [
@@ -264,9 +350,9 @@ function CustomDrawingTools({ onShapeCreated, farms, selectedFarm, onFarmSelect 
     const updatedShapes = [...drawnShapes, newShape];
     setDrawnShapes(updatedShapes);
     localStorage.setItem('farmShapes', JSON.stringify(updatedShapes));
-    
+
     onShapeCreated(newShape);
-    
+
     setDrawingMode(null);
     setCurrentShape([]);
   };
@@ -286,127 +372,124 @@ function CustomDrawingTools({ onShapeCreated, farms, selectedFarm, onFarmSelect 
   return (
     <>
       {/* Enhanced Drawing Controls */}
-      <div className="leaflet-top leaflet-right">
-        <div className="leaflet-control leaflet-bar bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl p-4 border border-gray-200">
-          <h4 className="font-bold text-gray-800 mb-3 text-sm">Drawing Tools</h4>
-          <div className="space-y-2">
-            <button
-              onClick={() => setDrawingMode('polygon')}
-              className={`w-full px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 flex items-center gap-2 ${
-                drawingMode === 'polygon' 
-                  ? 'bg-green-600 text-white shadow-lg' 
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:shadow-md'
-              }`}
-            >
-              <Hexagon className="w-4 h-4" />
-              Draw Polygon
-            </button>
-            <button
-              onClick={() => setDrawingMode('rectangle')}
-              className={`w-full px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 flex items-center gap-2 ${
-                drawingMode === 'rectangle' 
-                  ? 'bg-green-600 text-white shadow-lg' 
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:shadow-md'
-              }`}
-            >
-              <Square className="w-4 h-4" />
-              Draw Rectangle
-            </button>
-            {drawingMode && (
-              <div className="pt-2 border-t border-gray-200 space-y-2">
-                {drawingMode === 'polygon' && currentShape.length >= 3 && (
-                  <button
-                    onClick={completePolygon}
-                    className="w-full px-4 py-3 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center gap-2"
-                  >
-                    <Navigation className="w-4 h-4" />
-                    Complete Polygon
-                  </button>
-                )}
-                <button
-                  onClick={cancelDrawing}
-                  className="w-full px-4 py-3 bg-red-600 text-white rounded-xl text-sm font-semibold hover:bg-red-700 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center gap-2"
-                >
-                  <X className="w-4 h-4" />
-                  Cancel
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
+  
 
       {/* Current drawing shape */}
       {drawingMode && currentShape.length > 0 && (
         <Polygon
           positions={currentShape}
-          pathOptions={{ 
-            color: '#EF4444', 
-            fillColor: '#EF4444', 
+          pathOptions={{
+            color: '#EF4444',
+            fillColor: '#EF4444',
             fillOpacity: 0.3,
             dashArray: '8, 8',
             weight: 3
           }}
         />
       )}
-      
-      {/* Render farm boundaries with selection highlighting */}
-      {farms.map((farm, index) => (
-        farm.coordinates && farm.coordinates.length > 0 && (
-          <Polygon
-            key={`farm-${index}`}
-            positions={farm.coordinates.map(coord => [coord.lat, coord.lng])}
-            pathOptions={{ 
-              color: selectedFarm?.farm_id === farm.farm_id ? '#10B981' : '#3B82F6', 
-              fillColor: selectedFarm?.farm_id === farm.farm_id ? '#10B981' : '#3B82F6',
-              fillOpacity: selectedFarm?.farm_id === farm.farm_id ? 0.4 : 0.2,
-              weight: selectedFarm?.farm_id === farm.farm_id ? 4 : 2
-            }}
-            eventHandlers={{
-              click: () => {
-                onFarmSelect(farm);
-              }
-            }}
-          />
-        )
-      ))}
-      
-      {/* Render saved shapes */}
-      {drawnShapes.map((shape, index) => (
-        shape.type === 'polygon' ? (
-          <Polygon
-            key={`shape-${index}`}
-            positions={shape.coordinates}
-            pathOptions={{ 
-              color: '#F59E0B', 
-              fillColor: '#F59E0B', 
-              fillOpacity: 0.4,
-              weight: 2
-            }}
-          />
-        ) : shape.type === 'rectangle' ? (
-          <Rectangle
-            key={`shape-${index}`}
-            bounds={shape.coordinates}
-            pathOptions={{ 
-              color: '#F59E0B', 
-              fillColor: '#F59E0B', 
-              fillOpacity: 0.4,
-              weight: 2
-            }}
-          />
-        ) : null
-      ))}
 
-      {/* Selected Farm Center Marker */}
+      {/* Render farm boundaries with selection highlighting */}
+      {farms.map((farm, index) => {
+        if (!farm.coordinates || farm.coordinates.length === 0) return null;
+        
+        const center = getShapeCenter(farm);
+        
+        return (
+          <React.Fragment key={`farm-${index}`}>
+            <Polygon
+              positions={farm.coordinates.map(coord => [coord.lat, coord.lng])}
+              pathOptions={{
+                color: selectedFarm?.farm_id === farm.farm_id ? '#10B981' : '#3B82F6',
+                fillColor: selectedFarm?.farm_id === farm.farm_id ? '#10B981' : '#3B82F6',
+                fillOpacity: selectedFarm?.farm_id === farm.farm_id ? 0.4 : 0.2,
+                weight: selectedFarm?.farm_id === farm.farm_id ? 4 : 2
+              }}
+              eventHandlers={{
+                click: () => {
+                  onFarmSelect(farm);
+                }
+              }}
+            />
+            {/* Farm Center Marker */}
+            {center && (
+              // <Marker >
+                <Popup position={[center.lat, center.lng]}>
+                  <div className="text-sm font-medium">
+                    {farm.farm_name || `Farm ${index + 1}`}
+                  </div>
+                </Popup>
+              // </Marker>
+            )}
+          </React.Fragment>
+        );
+      })}
+
+      {/* Render saved shapes with markers */}
+      {drawnShapes.map((shape, index) => {
+        const center = getShapeCenter(shape);
+        
+        return (
+          <React.Fragment key={`shape-${index}`}>
+            {shape.type === 'polygon' ? (
+              <Polygon
+                positions={shape.coordinates}
+                pathOptions={{
+                  color: '#F59E0B',
+                  fillColor: '#F59E0B',
+                  fillOpacity: 0.4,
+                  weight: 2
+                }}
+              />
+            ) : shape.type === 'rectangle' ? (
+              <Rectangle
+                bounds={[
+                  [shape.coordinates[0].lat, shape.coordinates[0].lng],
+                  [shape.coordinates[2]?.lat || shape.coordinates[1].lat, 
+                   shape.coordinates[2]?.lng || shape.coordinates[1].lng]
+                ]}
+                pathOptions={{
+                  color: '#F59E0B',
+                  fillColor: '#F59E0B',
+                  fillOpacity: 0.4,
+                  weight: 2
+                }}
+              />
+            ) : null}
+            
+            {/* Shape Center Marker */}
+            {center && (
+              <Marker position={[center.lat, center.lng]}>
+                <Popup>
+                  <div className="text-sm font-medium">
+                    {shape.name || `Shape ${index + 1}`}
+                    <div className="text-xs text-gray-600">
+                      Area: {shape.areaHectares} hectares
+                    </div>
+                  </div>
+                </Popup>
+              </Marker>
+            )}
+          </React.Fragment>
+        );
+      })}
+
+      {/* Selected Farm Center Marker - Improved */}
       {selectedFarm && selectedFarm.coordinates && selectedFarm.coordinates.length > 0 && (
-        <Marker position={[
-          selectedFarm.coordinates.reduce((sum, coord) => sum + coord.lat, 0) / selectedFarm.coordinates.length,
-          selectedFarm.coordinates.reduce((sum, coord) => sum + coord.lng, 0) / selectedFarm.coordinates.length
-        ]}>
+        <Marker 
+          position={getShapeCenter(selectedFarm)} 
+          icon={L.divIcon({
+            className: 'custom-marker',
+            html: `<div style="background-color: #10B981; color: white; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);">★</div>`,
+            iconSize: [24, 24],
+            iconAnchor: [12, 12]
+          })}
+        >
           <Popup>
             <div className="text-sm font-medium">
               {selectedFarm.farm_name}
+              <div className="text-xs text-gray-600">
+                Selected Farm
+              </div>
             </div>
           </Popup>
         </Marker>
@@ -418,7 +501,7 @@ function CustomDrawingTools({ onShapeCreated, farms, selectedFarm, onFarmSelect 
 // Main Map Component
 function FarmMap({ farms, onShapeCreated, selectedFarm, onFarmSelect }) {
   const [isClient, setIsClient] = useState(false);
-  
+
   useEffect(() => {
     setIsClient(true);
   }, []);
@@ -434,26 +517,21 @@ function FarmMap({ farms, onShapeCreated, selectedFarm, onFarmSelect }) {
     );
   }
 
-  const center = selectedFarm && selectedFarm.coordinates && selectedFarm.coordinates.length > 0
-    ? [
-        selectedFarm.coordinates.reduce((sum, coord) => sum + coord.lat, 0) / selectedFarm.coordinates.length,
-        selectedFarm.coordinates.reduce((sum, coord) => sum + coord.lng, 0) / selectedFarm.coordinates.length
-      ]
-    : [20.5937, 78.9629];
+  const center = selectedFarm ? getShapeCenter(selectedFarm) : [20.5937, 78.9629];
 
   return (
     <MapContainer
-      center={center}
+      center={center || [20.5937, 78.9629]}
       zoom={selectedFarm ? 14 : 5}
       style={{ height: '100%', width: '100%', borderRadius: '16px' }}
       scrollWheelZoom={true}
     >
       <TileLayer
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
       />
-      <CustomDrawingTools 
-        onShapeCreated={onShapeCreated} 
+      <CustomDrawingTools
+        onShapeCreated={onShapeCreated}
         farms={farms}
         selectedFarm={selectedFarm}
         onFarmSelect={onFarmSelect}
@@ -486,12 +564,12 @@ export default function Fields() {
       try {
         setLoading(true);
         const response = await fetch(
-          "https://earthscansystems.com/farmerdatauser/userfarm/",{
-            headers: {
-              "Content-Type": "application/json",
-              "Authorization": `Bearer ${localStorage.getItem("access")}`,
-            },
-          }
+          "https://earthscansystems.com/farmerdatauser/userfarm/", {
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${localStorage.getItem("access")}`,
+          },
+        }
         );
         if (!response.ok) {
           throw new Error("Failed to fetch fields");
@@ -574,72 +652,23 @@ export default function Fields() {
     <ProtectedPage>
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
         <div className="container mx-auto p-6">
-          {/* Header Section */}
-          <div className="mb-8">
-            <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between mb-6 gap-4">
-              <div>
-                <h1 className="text-4xl font-bold bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent mb-2">
-                  Farm Management
-                </h1>
-                <p className="text-gray-600 text-lg">
-                  Manage and monitor all your agricultural fields
-                </p>
-              </div>
-              <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-gray-100">
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-green-700">
-                    {allDisplayFields.length}
-                  </div>
-                  <div className="text-sm text-gray-500 font-medium">
-                    Total Fields
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Search Bar */}
-            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg p-6 mb-6 border border-gray-100">
-              <div className="relative">
-                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                <input
-                  type="text"
-                  placeholder="Search by Farm ID or name..."
-                  className="w-full pl-12 pr-4 py-4 border border-gray-200 rounded-2xl focus:outline-none focus:ring-3 focus:ring-green-500/30 focus:border-green-500 transition-all duration-200 bg-white/70 backdrop-blur-sm text-lg font-medium"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
-            </div>
-          </div>
+         
 
           {/* Map Section */}
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-2xl mb-8 border border-gray-100 overflow-hidden relative">
             <div className="h-[500px] w-full">
-              <FarmMap 
-                farms={allFields} 
+              <FarmMap
+                farms={allFields}
                 onShapeCreated={handleShapeCreated}
                 selectedFarm={selectedFarm}
                 onFarmSelect={handleFarmSelect}
               />
             </div>
-            
-            {/* Enhanced Instructions */}
-            <div className="absolute bottom-4 left-4 bg-white/95 backdrop-blur-sm rounded-2xl p-4 shadow-xl border border-gray-200 z-[1000] max-w-xs">
-              <h4 className="font-bold text-gray-800 mb-2 flex items-center gap-2 text-sm">
-                <Navigation className="w-4 h-4 text-green-600" />
-                Drawing Guide
-              </h4>
-              <div className="space-y-1 text-xs text-gray-600">
-                <p>• Click <span className="font-semibold text-green-600">Draw Polygon</span> for custom shapes</p>
-                <p>• Click <span className="font-semibold text-green-600">Draw Rectangle</span> for rectangular fields</p>
-                <p>• Click on map to place points</p>
-                <p>• Click <span className="font-semibold text-blue-600">Complete</span> to finish</p>
-              </div>
-            </div>
+
 
             {/* Selected Farm Info */}
             {selectedFarm && (
-              <div className="absolute top-4 left-4 bg-white/95 backdrop-blur-sm rounded-2xl p-4 shadow-xl border border-green-200 z-[1000] max-w-xs">
+              <div className="absolute top-[70px] left-4 bg-white/95 backdrop-blur-sm rounded-2xl p-4 shadow-xl border border-green-200 z-[1000] max-w-xs">
                 <div className="flex items-center justify-between mb-2">
                   <h4 className="font-bold text-green-800 flex items-center gap-2 text-sm">
                     <LandPlot className="w-4 h-4" />
@@ -665,9 +694,22 @@ export default function Fields() {
           {showhistorydetailhistory &&
             <History_detail_history setShowhistorydetailhistory={setShowhistorydetailhistory} />
           }
-          
+
           <div className="mb-8">
             <h2 className="text-2xl font-bold text-gray-800 mb-6">Registered Fields</h2>
+               {/* Search Bar */}
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg p-6 mb-6 border border-gray-100">
+              <div className="relative">
+                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <input
+                  type="text"
+                  placeholder="Search by Farm ID or name..."
+                  className="w-full pl-12 pr-4 py-4 border border-gray-200 rounded-2xl focus:outline-none focus:ring-3 focus:ring-green-500/30 focus:border-green-500 transition-all duration-200 bg-white/70 backdrop-blur-sm text-lg font-medium"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {allDisplayFields.length === 0 ? (
                 <div className="col-span-full p-12 text-center bg-white/70 rounded-2xl border border-gray-200">
@@ -690,26 +732,23 @@ export default function Fields() {
                         setShowhistorydetailhistory(true);
                       }
                     }}
-                    className={`group cursor-pointer transform transition-all duration-300 hover:scale-105 active:scale-95 bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg border-2 overflow-hidden hover:shadow-2xl ${
-                      selectedFarm?.farm_id === farm.farm_id 
-                        ? 'border-green-500 ring-4 ring-green-500/20' 
-                        : 'border-gray-100 hover:border-green-300'
-                    } ${
-                      !farm.farm_id ? 'border-l-4 border-l-blue-500' : ''
-                    }`}
+                    className={`group cursor-pointer transform transition-all duration-300 hover:scale-105 active:scale-95 bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg border-2 overflow-hidden hover:shadow-2xl ${selectedFarm?.farm_id === farm.farm_id
+                      ? 'border-green-500 ring-4 ring-green-500/20'
+                      : 'border-gray-100 hover:border-green-300'
+                      } ${!farm.farm_id ? 'border-l-4 border-l-blue-500' : ''
+                      }`}
                   >
                     {/* Card Header */}
-                    <div className={`p-4 text-white relative ${
-                      farm.farm_id 
-                        ? selectedFarm?.farm_id === farm.farm_id 
-                          ? 'bg-gradient-to-r from-green-600 to-emerald-600' 
-                          : 'bg-gradient-to-r from-blue-600 to-cyan-600'
-                        : 'bg-gradient-to-r from-orange-500 to-amber-500'
-                    }`}>
+                    <div className={`p-4 text-white relative ${farm.farm_id
+                      ? selectedFarm?.farm_id === farm.farm_id
+                        ? 'bg-gradient-to-r from-green-600 to-emerald-600'
+                        : 'bg-gradient-to-r from-blue-600 to-cyan-600'
+                      : 'bg-gradient-to-r from-orange-500 to-amber-500'
+                      }`}>
                       <div className="flex items-start justify-between mb-2">
                         {farm.type ? (
-                          farm.type === 'rectangle' ? 
-                            <Square className="w-6 h-6 text-white/90" /> : 
+                          farm.type === 'rectangle' ?
+                            <Square className="w-6 h-6 text-white/90" /> :
                             <Hexagon className="w-6 h-6 text-white/90" />
                         ) : (
                           <LandPlot className="w-6 h-6 text-white/90" />
@@ -788,6 +827,7 @@ export default function Fields() {
 }
 // "use client";
 // import React, { useEffect, useState, useRef } from "react";
+// import L from 'leaflet';
 // import {
 //   Search,
 //   LandPlot,
@@ -802,6 +842,19 @@ export default function Fields() {
 // import ProtectedPage from "../contact/ProtectedPage/AuthorizedPage";
 // import History_detail_history from "../dashboard/History_detail_history";
 // import dynamic from 'next/dynamic';
+
+// // Import Leaflet CSS
+// import 'leaflet/dist/leaflet.css';
+
+// // Fix for default markers in Leaflet with Next.js
+// if (typeof window !== 'undefined') {
+//   delete L.Icon.Default.prototype._getIconUrl;
+//   L.Icon.Default.mergeOptions({
+//     iconUrl: 'https://cdn.jsdelivr.net/npm/leaflet@1.7.1/dist/images/marker-icon.png',
+//     iconRetinaUrl: 'https://cdn.jsdelivr.net/npm/leaflet@1.7.1/dist/images/marker-icon-2x.png',
+//     shadowUrl: 'https://cdn.jsdelivr.net/npm/leaflet@1.7.1/dist/images/marker-shadow.png',
+//   });
+// }
 
 // // Dynamically import Leaflet components with no SSR
 // const MapContainer = dynamic(
@@ -874,7 +927,7 @@ export default function Fields() {
 //             <X className="w-5 h-5" />
 //           </button>
 //         </div>
-        
+
 //         <form onSubmit={handleSubmit} className="space-y-4">
 //           <div>
 //             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -885,11 +938,11 @@ export default function Fields() {
 //               required
 //               className="w-full p-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200"
 //               value={formData.name}
-//               onChange={(e) => setFormData({...formData, name: e.target.value})}
+//               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
 //               placeholder="Enter field name"
 //             />
 //           </div>
-          
+
 //           <div>
 //             <label className="block text-sm font-medium text-gray-700 mb-1">
 //               Area
@@ -901,12 +954,12 @@ export default function Fields() {
 //                 step="0.01"
 //                 className="flex-1 p-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200"
 //                 value={formData.area}
-//                 onChange={(e) => setFormData({...formData, area: e.target.value})}
+//                 onChange={(e) => setFormData({ ...formData, area: e.target.value })}
 //               />
 //               <select
 //                 className="p-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200"
 //                 value={formData.unit}
-//                 onChange={(e) => setFormData({...formData, unit: e.target.value})}
+//                 onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
 //               >
 //                 <option value="hectares">Hectares</option>
 //                 <option value="acres">Acres</option>
@@ -914,7 +967,7 @@ export default function Fields() {
 //               </select>
 //             </div>
 //           </div>
-          
+
 //           <div className="bg-green-50 rounded-xl p-4 border border-green-100">
 //             <div className="grid grid-cols-2 gap-2 text-sm">
 //               <div>
@@ -927,7 +980,7 @@ export default function Fields() {
 //               </div>
 //             </div>
 //           </div>
-          
+
 //           <div className="flex gap-3 pt-4">
 //             <button
 //               type="button"
@@ -951,6 +1004,9 @@ export default function Fields() {
 
 // // Custom Drawing Tools Component
 // function CustomDrawingTools({ onShapeCreated, farms, selectedFarm, onFarmSelect }) {
+//   // Import useMap directly - safe since this component only renders inside MapContainer (client-side)
+//   const { useMap } = require('react-leaflet');
+//   const map = useMap();
 //   const [drawnShapes, setDrawnShapes] = useState([]);
 //   const [drawingMode, setDrawingMode] = useState(null);
 //   const [currentShape, setCurrentShape] = useState([]);
@@ -967,37 +1023,66 @@ export default function Fields() {
 //   // Function to calculate area in square meters
 //   const calculateArea = (coordinates) => {
 //     if (!coordinates || coordinates.length < 3) return 0;
-    
+
 //     let area = 0;
 //     const coords = coordinates;
-    
+
 //     for (let i = 0; i < coords.length - 1; i++) {
 //       const [x1, y1] = [coords[i].lng, coords[i].lat];
 //       const [x2, y2] = [coords[i + 1].lng, coords[i + 1].lat];
 //       area += (x1 * y2 - x2 * y1);
 //     }
-    
+
 //     return Math.abs(area) / 2;
 //   };
 
-//   const handleMapClick = (e) => {
-//     if (!drawingMode) return;
+//   useEffect(() => {
+//     if (!map) return;
 
-//     const { lat, lng } = e.latlng;
-//     const newPoint = { lat, lng };
+//     const handleMapClick = (e) => {
+//       if (!drawingMode) return;
 
-//     if (drawingMode === 'polygon') {
-//       setCurrentShape(prev => [...prev, newPoint]);
-//     } else if (drawingMode === 'rectangle' && currentShape.length < 2) {
-//       const newShape = [...currentShape, newPoint];
-//       setCurrentShape(newShape);
-      
-//       if (newShape.length === 2) {
-//         const rectCoordinates = createRectangleCoordinates(newShape[0], newShape[1]);
-//         finishDrawing(rectCoordinates, 'rectangle');
+//       const { lat, lng } = e.latlng;
+//       const newPoint = { lat, lng };
+
+//       if (drawingMode === 'polygon') {
+//         setCurrentShape(prev => [...prev, newPoint]);
+//       } else if (drawingMode === 'rectangle' && currentShape.length < 2) {
+//         const newShape = [...currentShape, newPoint];
+//         setCurrentShape(newShape);
+
+//         if (newShape.length === 2) {
+//           const rectCoordinates = createRectangleCoordinates(newShape[0], newShape[1]);
+//           finishDrawing(rectCoordinates, 'rectangle');
+//         }
+//       }
+//     };
+
+//     map.on('click', handleMapClick);
+
+//     return () => {
+//       map.off('click', handleMapClick);
+//     };
+//   }, [map, drawingMode, currentShape]);
+
+//   // Zoom to selected farm when it changes
+//   useEffect(() => {
+//     if (selectedFarm && selectedFarm.coordinates && selectedFarm.coordinates.length > 0 && map) {
+//       try {
+//         const bounds = L.latLngBounds(
+//           selectedFarm.coordinates.map(coord => [coord.lat, coord.lng])
+//         );
+//         map.fitBounds(bounds, {
+//           padding: [50, 50],
+//           maxZoom: 17,
+//           animate: true,
+//           duration: 1
+//         });
+//       } catch (error) {
+//         console.error('Error zooming to farm:', error);
 //       }
 //     }
-//   };
+//   }, [selectedFarm, map]);
 
 //   const createRectangleCoordinates = (point1, point2) => {
 //     return [
@@ -1025,9 +1110,9 @@ export default function Fields() {
 //     const updatedShapes = [...drawnShapes, newShape];
 //     setDrawnShapes(updatedShapes);
 //     localStorage.setItem('farmShapes', JSON.stringify(updatedShapes));
-    
+
 //     onShapeCreated(newShape);
-    
+
 //     setDrawingMode(null);
 //     setCurrentShape([]);
 //   };
@@ -1053,22 +1138,20 @@ export default function Fields() {
 //           <div className="space-y-2">
 //             <button
 //               onClick={() => setDrawingMode('polygon')}
-//               className={`w-full px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 flex items-center gap-2 ${
-//                 drawingMode === 'polygon' 
-//                   ? 'bg-green-600 text-white shadow-lg' 
-//                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:shadow-md'
-//               }`}
+//               className={`w-full px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 flex items-center gap-2 ${drawingMode === 'polygon'
+//                 ? 'bg-green-600 text-white shadow-lg'
+//                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:shadow-md'
+//                 }`}
 //             >
 //               <Hexagon className="w-4 h-4" />
 //               Draw Polygon
 //             </button>
 //             <button
 //               onClick={() => setDrawingMode('rectangle')}
-//               className={`w-full px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 flex items-center gap-2 ${
-//                 drawingMode === 'rectangle' 
-//                   ? 'bg-green-600 text-white shadow-lg' 
-//                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:shadow-md'
-//               }`}
+//               className={`w-full px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 flex items-center gap-2 ${drawingMode === 'rectangle'
+//                 ? 'bg-green-600 text-white shadow-lg'
+//                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:shadow-md'
+//                 }`}
 //             >
 //               <Square className="w-4 h-4" />
 //               Draw Rectangle
@@ -1101,25 +1184,24 @@ export default function Fields() {
 //       {drawingMode && currentShape.length > 0 && (
 //         <Polygon
 //           positions={currentShape}
-//           pathOptions={{ 
-//             color: '#EF4444', 
-//             fillColor: '#EF4444', 
+//           pathOptions={{
+//             color: '#EF4444',
+//             fillColor: '#EF4444',
 //             fillOpacity: 0.3,
 //             dashArray: '8, 8',
 //             weight: 3
 //           }}
-//           eventHandlers={{ click: handleMapClick }}
 //         />
 //       )}
-      
+
 //       {/* Render farm boundaries with selection highlighting */}
 //       {farms.map((farm, index) => (
 //         farm.coordinates && farm.coordinates.length > 0 && (
 //           <Polygon
 //             key={`farm-${index}`}
 //             positions={farm.coordinates.map(coord => [coord.lat, coord.lng])}
-//             pathOptions={{ 
-//               color: selectedFarm?.farm_id === farm.farm_id ? '#10B981' : '#3B82F6', 
+//             pathOptions={{
+//               color: selectedFarm?.farm_id === farm.farm_id ? '#10B981' : '#3B82F6',
 //               fillColor: selectedFarm?.farm_id === farm.farm_id ? '#10B981' : '#3B82F6',
 //               fillOpacity: selectedFarm?.farm_id === farm.farm_id ? 0.4 : 0.2,
 //               weight: selectedFarm?.farm_id === farm.farm_id ? 4 : 2
@@ -1132,16 +1214,16 @@ export default function Fields() {
 //           />
 //         )
 //       ))}
-      
+
 //       {/* Render saved shapes */}
 //       {drawnShapes.map((shape, index) => (
 //         shape.type === 'polygon' ? (
 //           <Polygon
 //             key={`shape-${index}`}
 //             positions={shape.coordinates}
-//             pathOptions={{ 
-//               color: '#F59E0B', 
-//               fillColor: '#F59E0B', 
+//             pathOptions={{
+//               color: '#F59E0B',
+//               fillColor: '#F59E0B',
 //               fillOpacity: 0.4,
 //               weight: 2
 //             }}
@@ -1150,9 +1232,9 @@ export default function Fields() {
 //           <Rectangle
 //             key={`shape-${index}`}
 //             bounds={shape.coordinates}
-//             pathOptions={{ 
-//               color: '#F59E0B', 
-//               fillColor: '#F59E0B', 
+//             pathOptions={{
+//               color: '#F59E0B',
+//               fillColor: '#F59E0B',
 //               fillOpacity: 0.4,
 //               weight: 2
 //             }}
@@ -1162,16 +1244,12 @@ export default function Fields() {
 
 //       {/* Selected Farm Center Marker */}
 //       {selectedFarm && selectedFarm.coordinates && selectedFarm.coordinates.length > 0 && (
-//         <Marker position={[
-//           selectedFarm.coordinates.reduce((sum, coord) => sum + coord.lat, 0) / selectedFarm.coordinates.length,
-//           selectedFarm.coordinates.reduce((sum, coord) => sum + coord.lng, 0) / selectedFarm.coordinates.length
-//         ]}>
-//           <Popup>
+//         <Popup position={[selectedFarm.coordinates.reduce((sum, coord) => sum + coord.lat, 0) / selectedFarm.coordinates.length, selectedFarm.coordinates.reduce((sum, coord) => sum + coord.lng, 0) / selectedFarm.coordinates.length]}>
 //             <div className="text-sm font-medium">
 //               {selectedFarm.farm_name}
+          
 //             </div>
 //           </Popup>
-//         </Marker>
 //       )}
 //     </>
 //   );
@@ -1180,7 +1258,7 @@ export default function Fields() {
 // // Main Map Component
 // function FarmMap({ farms, onShapeCreated, selectedFarm, onFarmSelect }) {
 //   const [isClient, setIsClient] = useState(false);
-  
+
 //   useEffect(() => {
 //     setIsClient(true);
 //   }, []);
@@ -1198,31 +1276,29 @@ export default function Fields() {
 
 //   const center = selectedFarm && selectedFarm.coordinates && selectedFarm.coordinates.length > 0
 //     ? [
-//         selectedFarm.coordinates.reduce((sum, coord) => sum + coord.lat, 0) / selectedFarm.coordinates.length,
-//         selectedFarm.coordinates.reduce((sum, coord) => sum + coord.lng, 0) / selectedFarm.coordinates.length
-//       ]
+//       selectedFarm.coordinates.reduce((sum, coord) => sum + coord.lat, 0) / selectedFarm.coordinates.length,
+//       selectedFarm.coordinates.reduce((sum, coord) => sum + coord.lng, 0) / selectedFarm.coordinates.length
+//     ]
 //     : [20.5937, 78.9629];
 
 //   return (
-//     <div  className="bg-white shadow-2xl overflow-hidden border border-gray-200 w-[400px] h-[600px] mb-8">
 //     <MapContainer
 //       center={center}
 //       zoom={selectedFarm ? 14 : 5}
 //       style={{ height: '100%', width: '100%', borderRadius: '16px' }}
-      
-//       >
+//       scrollWheelZoom={true}
+//     >
 //       <TileLayer
 //         url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
 //         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-//         />
-//       <CustomDrawingTools 
-//         onShapeCreated={onShapeCreated} 
+//       />
+//       <CustomDrawingTools
+//         onShapeCreated={onShapeCreated}
 //         farms={farms}
 //         selectedFarm={selectedFarm}
 //         onFarmSelect={onFarmSelect}
-//         />
+//       />
 //     </MapContainer>
-//         </div>
 //   );
 // }
 
@@ -1250,12 +1326,12 @@ export default function Fields() {
 //       try {
 //         setLoading(true);
 //         const response = await fetch(
-//           "https://earthscansystems.com/farmerdatauser/userfarm/",{
-//             headers: {
-//               "Content-Type": "application/json",
-//               "Authorization": `Bearer ${localStorage.getItem("access")}`,
-//             },
-//           }
+//           "https://earthscansystems.com/farmerdatauser/userfarm/", {
+//           headers: {
+//             "Content-Type": "application/json",
+//             "Authorization": `Bearer ${localStorage.getItem("access")}`,
+//           },
+//         }
 //         );
 //         if (!response.ok) {
 //           throw new Error("Failed to fetch fields");
@@ -1379,14 +1455,14 @@ export default function Fields() {
 //           {/* Map Section */}
 //           <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-2xl mb-8 border border-gray-100 overflow-hidden relative">
 //             <div className="h-[500px] w-full">
-//               <FarmMap 
-//                 farms={allFields} 
+//               <FarmMap
+//                 farms={allFields}
 //                 onShapeCreated={handleShapeCreated}
 //                 selectedFarm={selectedFarm}
 //                 onFarmSelect={handleFarmSelect}
 //               />
 //             </div>
-            
+
 //             {/* Enhanced Instructions */}
 //             <div className="absolute bottom-4 left-4 bg-white/95 backdrop-blur-sm rounded-2xl p-4 shadow-xl border border-gray-200 z-[1000] max-w-xs">
 //               <h4 className="font-bold text-gray-800 mb-2 flex items-center gap-2 text-sm">
@@ -1403,7 +1479,7 @@ export default function Fields() {
 
 //             {/* Selected Farm Info */}
 //             {selectedFarm && (
-//               <div className="absolute top-4 left-4 bg-white/95 backdrop-blur-sm rounded-2xl p-4 shadow-xl border border-green-200 z-[1000] max-w-xs">
+//               <div className="absolute top-[70px] left-4 bg-white/95 backdrop-blur-sm rounded-2xl p-4 shadow-xl border border-green-200 z-[1000] max-w-xs">
 //                 <div className="flex items-center justify-between mb-2">
 //                   <h4 className="font-bold text-green-800 flex items-center gap-2 text-sm">
 //                     <LandPlot className="w-4 h-4" />
@@ -1429,7 +1505,7 @@ export default function Fields() {
 //           {showhistorydetailhistory &&
 //             <History_detail_history setShowhistorydetailhistory={setShowhistorydetailhistory} />
 //           }
-          
+
 //           <div className="mb-8">
 //             <h2 className="text-2xl font-bold text-gray-800 mb-6">Registered Fields</h2>
 //             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -1454,26 +1530,23 @@ export default function Fields() {
 //                         setShowhistorydetailhistory(true);
 //                       }
 //                     }}
-//                     className={`group cursor-pointer transform transition-all duration-300 hover:scale-105 active:scale-95 bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg border-2 overflow-hidden hover:shadow-2xl ${
-//                       selectedFarm?.farm_id === farm.farm_id 
-//                         ? 'border-green-500 ring-4 ring-green-500/20' 
-//                         : 'border-gray-100 hover:border-green-300'
-//                     } ${
-//                       !farm.farm_id ? 'border-l-4 border-l-blue-500' : ''
-//                     }`}
+//                     className={`group cursor-pointer transform transition-all duration-300 hover:scale-105 active:scale-95 bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg border-2 overflow-hidden hover:shadow-2xl ${selectedFarm?.farm_id === farm.farm_id
+//                       ? 'border-green-500 ring-4 ring-green-500/20'
+//                       : 'border-gray-100 hover:border-green-300'
+//                       } ${!farm.farm_id ? 'border-l-4 border-l-blue-500' : ''
+//                       }`}
 //                   >
 //                     {/* Card Header */}
-//                     <div className={`p-4 text-white relative ${
-//                       farm.farm_id 
-//                         ? selectedFarm?.farm_id === farm.farm_id 
-//                           ? 'bg-gradient-to-r from-green-600 to-emerald-600' 
-//                           : 'bg-gradient-to-r from-blue-600 to-cyan-600'
-//                         : 'bg-gradient-to-r from-orange-500 to-amber-500'
-//                     }`}>
+//                     <div className={`p-4 text-white relative ${farm.farm_id
+//                       ? selectedFarm?.farm_id === farm.farm_id
+//                         ? 'bg-gradient-to-r from-green-600 to-emerald-600'
+//                         : 'bg-gradient-to-r from-blue-600 to-cyan-600'
+//                       : 'bg-gradient-to-r from-orange-500 to-amber-500'
+//                       }`}>
 //                       <div className="flex items-start justify-between mb-2">
 //                         {farm.type ? (
-//                           farm.type === 'rectangle' ? 
-//                             <Square className="w-6 h-6 text-white/90" /> : 
+//                           farm.type === 'rectangle' ?
+//                             <Square className="w-6 h-6 text-white/90" /> :
 //                             <Hexagon className="w-6 h-6 text-white/90" />
 //                         ) : (
 //                           <LandPlot className="w-6 h-6 text-white/90" />
@@ -1550,1529 +1623,3 @@ export default function Fields() {
 //     </ProtectedPage>
 //   );
 // }
-// // "use client";
-// // import React, { useEffect, useState, useRef } from "react";
-// // import {
-// //   Search,
-// //   LandPlot,
-// //   MapPin,
-// //   Maximize2,
-// //   Square,
-// //   Hexagon,
-// //   Navigation,
-// //   X,
-// // } from "lucide-react";
-// // import { useRouter } from "next/navigation";
-// // import ProtectedPage from "../contact/ProtectedPage/AuthorizedPage";
-// // import History_detail_history from "../dashboard/History_detail_history";
-// // import dynamic from 'next/dynamic';
-
-// // // Dynamically import Leaflet components with no SSR
-// // const MapContainer = dynamic(
-// //   () => import('react-leaflet').then((mod) => mod.MapContainer),
-// //   { ssr: false }
-// // );
-// // const TileLayer = dynamic(
-// //   () => import('react-leaflet').then((mod) => mod.TileLayer),
-// //   { ssr: false }
-// // );
-// // const Polygon = dynamic(
-// //   () => import('react-leaflet').then((mod) => mod.Polygon),
-// //   { ssr: false }
-// // );
-// // const Rectangle = dynamic(
-// //   () => import('react-leaflet').then((mod) => mod.Rectangle),
-// //   { ssr: false }
-// // );
-// // const Marker = dynamic(
-// //   () => import('react-leaflet').then((mod) => mod.Marker),
-// //   { ssr: false }
-// // );
-// // const Popup = dynamic(
-// //   () => import('react-leaflet').then((mod) => mod.Popup),
-// //   { ssr: false }
-// // );
-
-// // // Shape Details Modal Component
-// // function ShapeDetailsModal({ shape, isOpen, onClose, onSave }) {
-// //   const [formData, setFormData] = useState({
-// //     name: '',
-// //     area: '',
-// //     unit: 'hectares'
-// //   });
-
-// //   useEffect(() => {
-// //     if (shape) {
-// //       setFormData({
-// //         name: `Field-${shape.id.slice(-4)}`,
-// //         area: shape.areaHectares,
-// //         unit: 'hectares'
-// //       });
-// //     }
-// //   }, [shape]);
-
-// //   const handleSubmit = (e) => {
-// //     e.preventDefault();
-// //     onSave({
-// //       ...shape,
-// //       name: formData.name,
-// //       savedArea: formData.area,
-// //       unit: formData.unit
-// //     });
-// //     onClose();
-// //   };
-
-// //   if (!isOpen) return null;
-
-// //   return (
-// //     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-// //       <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
-// //         <div className="flex items-center justify-between mb-4">
-// //           <h3 className="text-xl font-bold text-gray-800">
-// //             Save Field Shape
-// //           </h3>
-// //           <button
-// //             onClick={onClose}
-// //             className="p-1 hover:bg-gray-100 rounded-full transition-colors"
-// //           >
-// //             <X className="w-5 h-5" />
-// //           </button>
-// //         </div>
-        
-// //         <form onSubmit={handleSubmit} className="space-y-4">
-// //           <div>
-// //             <label className="block text-sm font-medium text-gray-700 mb-1">
-// //               Field Name
-// //             </label>
-// //             <input
-// //               type="text"
-// //               required
-// //               className="w-full p-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200"
-// //               value={formData.name}
-// //               onChange={(e) => setFormData({...formData, name: e.target.value})}
-// //               placeholder="Enter field name"
-// //             />
-// //           </div>
-          
-// //           <div>
-// //             <label className="block text-sm font-medium text-gray-700 mb-1">
-// //               Area
-// //             </label>
-// //             <div className="flex gap-2">
-// //               <input
-// //                 type="number"
-// //                 required
-// //                 step="0.01"
-// //                 className="flex-1 p-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200"
-// //                 value={formData.area}
-// //                 onChange={(e) => setFormData({...formData, area: e.target.value})}
-// //               />
-// //               <select
-// //                 className="p-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200"
-// //                 value={formData.unit}
-// //                 onChange={(e) => setFormData({...formData, unit: e.target.value})}
-// //               >
-// //                 <option value="hectares">Hectares</option>
-// //                 <option value="acres">Acres</option>
-// //                 <option value="sqmeters">Square Meters</option>
-// //               </select>
-// //             </div>
-// //           </div>
-          
-// //           <div className="bg-green-50 rounded-xl p-4 border border-green-100">
-// //             <div className="grid grid-cols-2 gap-2 text-sm">
-// //               <div>
-// //                 <span className="font-medium text-green-800">Auto ID:</span>
-// //                 <p className="text-green-700">{shape?.id}</p>
-// //               </div>
-// //               <div>
-// //                 <span className="font-medium text-green-800">Shape Type:</span>
-// //                 <p className="text-green-700 capitalize">{shape?.type}</p>
-// //               </div>
-// //             </div>
-// //           </div>
-          
-// //           <div className="flex gap-3 pt-4">
-// //             <button
-// //               type="button"
-// //               onClick={onClose}
-// //               className="flex-1 py-3 px-4 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-all duration-200 font-medium"
-// //             >
-// //               Cancel
-// //             </button>
-// //             <button
-// //               type="submit"
-// //               className="flex-1 py-3 px-4 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-all duration-200 font-medium shadow-lg hover:shadow-xl"
-// //             >
-// //               Save Field
-// //             </button>
-// //           </div>
-// //         </form>
-// //       </div>
-// //     </div>
-// //   );
-// // }
-
-// // // Custom Drawing Tools Component
-// // function CustomDrawingTools({ onShapeCreated, farms, selectedFarm, onFarmSelect }) {
-// //   const [drawnShapes, setDrawnShapes] = useState([]);
-// //   const [drawingMode, setDrawingMode] = useState(null);
-// //   const [currentShape, setCurrentShape] = useState([]);
-// //   const [mapCenter, setMapCenter] = useState([20.5937, 78.9629]);
-
-// //   // Load shapes from localStorage on component mount
-// //   useEffect(() => {
-// //     const savedShapes = localStorage.getItem('farmShapes');
-// //     if (savedShapes) {
-// //       const shapes = JSON.parse(savedShapes);
-// //       setDrawnShapes(shapes);
-// //     }
-// //   }, []);
-
-// //   // Function to calculate area in square meters
-// //   const calculateArea = (coordinates) => {
-// //     if (!coordinates || coordinates.length < 3) return 0;
-    
-// //     let area = 0;
-// //     const coords = coordinates;
-    
-// //     for (let i = 0; i < coords.length - 1; i++) {
-// //       const [x1, y1] = [coords[i].lng, coords[i].lat];
-// //       const [x2, y2] = [coords[i + 1].lng, coords[i + 1].lat];
-// //       area += (x1 * y2 - x2 * y1);
-// //     }
-    
-// //     return Math.abs(area) / 2;
-// //   };
-
-// //   const handleMapClick = (e) => {
-// //     if (!drawingMode) return;
-
-// //     const { lat, lng } = e.latlng;
-// //     const newPoint = { lat, lng };
-
-// //     if (drawingMode === 'polygon') {
-// //       setCurrentShape(prev => [...prev, newPoint]);
-// //     } else if (drawingMode === 'rectangle' && currentShape.length < 2) {
-// //       const newShape = [...currentShape, newPoint];
-// //       setCurrentShape(newShape);
-      
-// //       if (newShape.length === 2) {
-// //         const rectCoordinates = createRectangleCoordinates(newShape[0], newShape[1]);
-// //         finishDrawing(rectCoordinates, 'rectangle');
-// //       }
-// //     }
-// //   };
-
-// //   const createRectangleCoordinates = (point1, point2) => {
-// //     return [
-// //       point1,
-// //       { lat: point1.lat, lng: point2.lng },
-// //       point2,
-// //       { lat: point2.lat, lng: point1.lng },
-// //       point1
-// //     ];
-// //   };
-
-// //   const finishDrawing = (coordinates, type) => {
-// //     if (coordinates.length < 3) return;
-
-// //     const area = calculateArea(coordinates);
-// //     const newShape = {
-// //       id: `shape-${Date.now()}`,
-// //       type: type,
-// //       coordinates: coordinates,
-// //       area: area,
-// //       areaHectares: (area / 10000).toFixed(2),
-// //       createdAt: new Date().toISOString()
-// //     };
-
-// //     const updatedShapes = [...drawnShapes, newShape];
-// //     setDrawnShapes(updatedShapes);
-// //     localStorage.setItem('farmShapes', JSON.stringify(updatedShapes));
-    
-// //     onShapeCreated(newShape);
-    
-// //     setDrawingMode(null);
-// //     setCurrentShape([]);
-// //   };
-
-// //   const completePolygon = () => {
-// //     if (currentShape.length >= 3) {
-// //       const closedShape = [...currentShape, currentShape[0]];
-// //       finishDrawing(closedShape, 'polygon');
-// //     }
-// //   };
-
-// //   const cancelDrawing = () => {
-// //     setDrawingMode(null);
-// //     setCurrentShape([]);
-// //   };
-
-// //   // Center map on selected farm
-// //   useEffect(() => {
-// //     if (selectedFarm && selectedFarm.coordinates && selectedFarm.coordinates.length > 0) {
-// //       const centerLat = selectedFarm.coordinates.reduce((sum, coord) => sum + coord.lat, 0) / selectedFarm.coordinates.length;
-// //       const centerLng = selectedFarm.coordinates.reduce((sum, coord) => sum + coord.lng, 0) / selectedFarm.coordinates.length;
-// //       setMapCenter([centerLat, centerLng]);
-// //     }
-// //   }, [selectedFarm]);
-
-// //   return (
-// //     <>
-// //       {/* Enhanced Drawing Controls */}
-// //       <div className="leaflet-top leaflet-right">
-// //         <div className="leaflet-control leaflet-bar bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl p-4 border border-gray-200">
-// //           <h4 className="font-bold text-gray-800 mb-3 text-sm">Drawing Tools</h4>
-// //           <div className="space-y-2">
-// //             <button
-// //               onClick={() => setDrawingMode('polygon')}
-// //               className={`w-full px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 flex items-center gap-2 ${
-// //                 drawingMode === 'polygon' 
-// //                   ? 'bg-green-600 text-white shadow-lg' 
-// //                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:shadow-md'
-// //               }`}
-// //             >
-// //               <Hexagon className="w-4 h-4" />
-// //               Draw Polygon
-// //             </button>
-// //             <button
-// //               onClick={() => setDrawingMode('rectangle')}
-// //               className={`w-full px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 flex items-center gap-2 ${
-// //                 drawingMode === 'rectangle' 
-// //                   ? 'bg-green-600 text-white shadow-lg' 
-// //                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:shadow-md'
-// //               }`}
-// //             >
-// //               <Square className="w-4 h-4" />
-// //               Draw Rectangle
-// //             </button>
-// //             {drawingMode && (
-// //               <div className="pt-2 border-t border-gray-200 space-y-2">
-// //                 {drawingMode === 'polygon' && currentShape.length >= 3 && (
-// //                   <button
-// //                     onClick={completePolygon}
-// //                     className="w-full px-4 py-3 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center gap-2"
-// //                   >
-// //                     <Navigation className="w-4 h-4" />
-// //                     Complete Polygon
-// //                   </button>
-// //                 )}
-// //                 <button
-// //                   onClick={cancelDrawing}
-// //                   className="w-full px-4 py-3 bg-red-600 text-white rounded-xl text-sm font-semibold hover:bg-red-700 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center gap-2"
-// //                 >
-// //                   <X className="w-4 h-4" />
-// //                   Cancel
-// //                 </button>
-// //               </div>
-// //             )}
-// //           </div>
-// //         </div>
-// //       </div>
-
-// //       {/* Current drawing shape */}
-// //       {drawingMode && currentShape.length > 0 && (
-// //         <Polygon
-// //           positions={currentShape}
-// //           pathOptions={{ 
-// //             color: '#EF4444', 
-// //             fillColor: '#EF4444', 
-// //             fillOpacity: 0.3,
-// //             dashArray: '8, 8',
-// //             weight: 3
-// //           }}
-// //           eventHandlers={{ click: handleMapClick }}
-// //         />
-// //       )}
-      
-// //       {/* Render farm boundaries with selection highlighting */}
-// //       {farms.map((farm, index) => (
-// //         farm.coordinates && farm.coordinates.length > 0 && (
-// //           <Polygon
-// //             key={`farm-${index}`}
-// //             positions={farm.coordinates.map(coord => [coord.lat, coord.lng])}
-// //             pathOptions={{ 
-// //               color: selectedFarm?.farm_id === farm.farm_id ? '#10B981' : '#3B82F6', 
-// //               fillColor: selectedFarm?.farm_id === farm.farm_id ? '#10B981' : '#3B82F6',
-// //               fillOpacity: selectedFarm?.farm_id === farm.farm_id ? 0.4 : 0.2,
-// //               weight: selectedFarm?.farm_id === farm.farm_id ? 4 : 2
-// //             }}
-// //             eventHandlers={{
-// //               click: () => {
-// //                 onFarmSelect(farm);
-// //               }
-// //             }}
-// //           />
-// //         )
-// //       ))}
-      
-// //       {/* Render saved shapes */}
-// //       {drawnShapes.map((shape, index) => (
-// //         shape.type === 'polygon' ? (
-// //           <Polygon
-// //             key={`shape-${index}`}
-// //             positions={shape.coordinates}
-// //             pathOptions={{ 
-// //               color: '#F59E0B', 
-// //               fillColor: '#F59E0B', 
-// //               fillOpacity: 0.4,
-// //               weight: 2
-// //             }}
-// //           />
-// //         ) : shape.type === 'rectangle' ? (
-// //           <Rectangle
-// //             key={`shape-${index}`}
-// //             bounds={shape.coordinates}
-// //             pathOptions={{ 
-// //               color: '#F59E0B', 
-// //               fillColor: '#F59E0B', 
-// //               fillOpacity: 0.4,
-// //               weight: 2
-// //             }}
-// //           />
-// //         ) : null
-// //       ))}
-
-// //       {/* Selected Farm Center Marker */}
-// //       {selectedFarm && selectedFarm.coordinates && selectedFarm.coordinates.length > 0 && (
-// //         <Marker position={mapCenter}>
-// //           <Popup>
-// //             <div className="text-sm font-medium">
-// //               {selectedFarm.farm_name}
-// //             </div>
-// //           </Popup>
-// //         </Marker>
-// //       )}
-// //     </>
-// //   );
-// // }
-
-// // // Main Map Component
-// // function FarmMap({ farms, onShapeCreated, selectedFarm, onFarmSelect }) {
-// //   const [isClient, setIsClient] = useState(false);
-  
-// //   useEffect(() => {
-// //     setIsClient(true);
-// //   }, []);
-
-// //   if (!isClient) {
-// //     return (
-// //       <div className="h-full w-full flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl">
-// //         <div className="text-center">
-// //           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
-// //           <p className="text-gray-600 font-medium">Loading Map...</p>
-// //         </div>
-// //       </div>
-// //     );
-// //   }
-
-// //   const center = selectedFarm && selectedFarm.coordinates && selectedFarm.coordinates.length > 0
-// //     ? [
-// //         selectedFarm.coordinates.reduce((sum, coord) => sum + coord.lat, 0) / selectedFarm.coordinates.length,
-// //         selectedFarm.coordinates.reduce((sum, coord) => sum + coord.lng, 0) / selectedFarm.coordinates.length
-// //       ]
-// //     : [20.5937, 78.9629];
-
-// //   return (
-// //     <div className="bg-white shadow-2xl overflow-hidden border border-gray-200 h-[600px] mb-8" >
-// //     <MapContainer
-// //       center={center}
-// //       zoom={selectedFarm ? 14 : 5}
-// //       style={{ height: '100%', width: '100%', borderRadius: '16px' }}
-// //       className="shadow-lg"
-// //     >
-// //       <TileLayer
-// //         url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-// //         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-// //       />
-// //       <CustomDrawingTools 
-// //         onShapeCreated={onShapeCreated} 
-// //         farms={farms}
-// //         selectedFarm={selectedFarm}
-// //         onFarmSelect={onFarmSelect}
-// //       />
-// //     </MapContainer>
-// //     </div>
-// //   );
-// // }
-
-// // export default function Fields() {
-// //   const [allFields, setAllFields] = useState([]);
-// //   const [loading, setLoading] = useState(true);
-// //   const [searchTerm, setSearchTerm] = useState("");
-// //   const [showhistorydetailhistory, setShowhistorydetailhistory] = useState(false);
-// //   const [selectedShape, setSelectedShape] = useState(null);
-// //   const [showShapeModal, setShowShapeModal] = useState(false);
-// //   const [savedFields, setSavedFields] = useState([]);
-// //   const [selectedFarm, setSelectedFarm] = useState(null);
-
-// //   // Load saved fields from localStorage
-// //   useEffect(() => {
-// //     const saved = localStorage.getItem('savedFields');
-// //     if (saved) {
-// //       setSavedFields(JSON.parse(saved));
-// //     }
-// //   }, []);
-
-// //   // ✅ Fetch API data
-// //   useEffect(() => {
-// //     const fetchFields = async () => {
-// //       try {
-// //         setLoading(true);
-// //         const response = await fetch(
-// //           "https://earthscansystems.com/farmerdatauser/userfarm/",{
-// //             headers: {
-// //               "Content-Type": "application/json",
-// //               "Authorization": `Bearer ${localStorage.getItem("access")}`,
-// //             },
-// //           }
-// //         );
-// //         if (!response.ok) {
-// //           throw new Error("Failed to fetch fields");
-// //         }
-// //         const data = await response.json();
-
-// //         if (Array.isArray(data)) {
-// //           setAllFields(data);
-// //         } else {
-// //           setAllFields([data]);
-// //         }
-// //       } catch (error) {
-// //         console.error("Error fetching fields:", error);
-// //       } finally {
-// //         setLoading(false);
-// //       }
-// //     };
-
-// //     fetchFields();
-// //   }, []);
-
-// //   const handleShapeCreated = (shape) => {
-// //     setSelectedShape(shape);
-// //     setShowShapeModal(true);
-// //   };
-
-// //   const handleSaveShape = (savedShape) => {
-// //     const updatedFields = [...savedFields, savedShape];
-// //     setSavedFields(updatedFields);
-// //     localStorage.setItem('savedFields', JSON.stringify(updatedFields));
-// //   };
-
-// //   const handleFarmSelect = (farm) => {
-// //     setSelectedFarm(farm);
-// //   };
-
-// //   const clearSelection = () => {
-// //     setSelectedFarm(null);
-// //   };
-
-// //   // ✅ Filter logic
-// //   const filteredFields = allFields.filter(
-// //     (farm) =>
-// //       farm.farm_id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-// //       farm.farm_name?.toLowerCase().includes(searchTerm.toLowerCase())
-// //   );
-
-// //   // Combine API fields and saved drawn fields
-// //   const allDisplayFields = [...filteredFields, ...savedFields];
-
-// //   // ✅ Loading UI
-// //   if (loading) {
-// //     return (
-// //       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 p-6">
-// //         <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-xl p-8">
-// //           <div className="animate-pulse">
-// //             <div className="h-8 bg-gray-200 rounded-lg w-48 mb-8"></div>
-// //             <div className="space-y-4">
-// //               {[1, 2, 3].map((i) => (
-// //                 <div
-// //                   key={i}
-// //                   className="flex items-center space-x-4 p-4"
-// //                 >
-// //                   <div className="w-16 h-16 bg-gray-200 rounded-full"></div>
-// //                   <div className="flex-1">
-// //                     <div className="h-4 bg-gray-200 rounded w-32 mb-2"></div>
-// //                     <div className="h-3 bg-gray-200 rounded w-48"></div>
-// //                   </div>
-// //                   <div className="h-8 bg-gray-200 rounded-full w-20"></div>
-// //                 </div>
-// //               ))}
-// //             </div>
-// //           </div>
-// //         </div>
-// //       </div>
-// //     );
-// //   }
-
-// //   return (
-// //     <ProtectedPage>
-// //       <div className="bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex flex-col h-screen overflow-hidden">
-// //         <div className="flex-1 flex flex-col p-6">
-// //           {/* Header Section */}
-// //           <div className="mb-6">
-// //             <div className="flex items-center justify-between mb-6">
-// //               <div>
-// //                 <h1 className="text-4xl font-bold bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent mb-2">
-// //                   Farm Management
-// //                 </h1>
-// //                 <p className="text-gray-600 text-lg">
-// //                   Manage and monitor all your agricultural fields
-// //                 </p>
-// //               </div>
-// //               <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-gray-100">
-// //                 <div className="text-center">
-// //                   <div className="text-3xl font-bold text-green-700">
-// //                     {allDisplayFields.length}
-// //                   </div>
-// //                   <div className="text-sm text-gray-500 font-medium">
-// //                     Total Fields
-// //                   </div>
-// //                 </div>
-// //               </div>
-// //             </div>
-
-// //             {/* Search Bar */}
-// //             <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg p-6 mb-6 border border-gray-100">
-// //               <div className="relative">
-// //                 <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-// //                 <input
-// //                   type="text"
-// //                   placeholder="Search by Farm ID or name..."
-// //                   className="w-full pl-12 pr-4 py-4 border border-gray-200 rounded-2xl focus:outline-none focus:ring-3 focus:ring-green-500/30 focus:border-green-500 transition-all duration-200 bg-white/70 backdrop-blur-sm text-lg font-medium"
-// //                   value={searchTerm}
-// //                   onChange={(e) => setSearchTerm(e.target.value)}
-// //                 />
-// //               </div>
-// //             </div>
-// //           </div>
-
-// //           {/* Map Section */}
-// //           <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-2xl mb-8 flex-1 min-h-[500px] border border-gray-100 overflow-hidden">
-// //             <FarmMap 
-// //               farms={allFields} 
-// //               onShapeCreated={handleShapeCreated}
-// //               selectedFarm={selectedFarm}
-// //               onFarmSelect={handleFarmSelect}
-// //             />
-            
-// //             {/* Enhanced Instructions */}
-// //             <div className="absolute bottom-6 left-6 bg-white/95 backdrop-blur-sm rounded-2xl p-4 shadow-xl border border-gray-200 z-[1000] max-w-sm">
-// //               <h4 className="font-bold text-gray-800 mb-2 flex items-center gap-2">
-// //                 <Navigation className="w-4 h-4 text-green-600" />
-// //                 Drawing Guide
-// //               </h4>
-// //               <div className="space-y-1 text-sm text-gray-600">
-// //                 <p>• Click <span className="font-semibold text-green-600">Draw Polygon</span> to create custom shapes</p>
-// //                 <p>• Click <span className="font-semibold text-green-600">Draw Rectangle</span> for rectangular fields</p>
-// //                 <p>• Click on map to place points</p>
-// //                 <p>• Click <span className="font-semibold text-blue-600">Complete</span> to finish drawing</p>
-// //               </div>
-// //             </div>
-
-// //             {/* Selected Farm Info */}
-// //             {selectedFarm && (
-// //               <div className="absolute top-6 left-6 bg-white/95 backdrop-blur-sm rounded-2xl p-4 shadow-xl border border-green-200 z-[1000] max-w-sm">
-// //                 <div className="flex items-center justify-between mb-2">
-// //                   <h4 className="font-bold text-green-800 flex items-center gap-2">
-// //                     <LandPlot className="w-4 h-4" />
-// //                     Selected Farm
-// //                   </h4>
-// //                   <button
-// //                     onClick={clearSelection}
-// //                     className="p-1 hover:bg-gray-100 rounded-full transition-colors"
-// //                   >
-// //                     <X className="w-4 h-4" />
-// //                   </button>
-// //                 </div>
-// //                 <div className="space-y-2 text-sm">
-// //                   <p><span className="font-semibold">Name:</span> {selectedFarm.farm_name}</p>
-// //                   <p><span className="font-semibold">ID:</span> {selectedFarm.farm_id}</p>
-// //                   <p><span className="font-semibold">Area:</span> {selectedFarm.area} {selectedFarm.unit}</p>
-// //                 </div>
-// //               </div>
-// //             )}
-// //           </div>
-
-// //           {/* Cards Section */}
-// //           {showhistorydetailhistory &&
-// //             <History_detail_history setShowhistorydetailhistory={setShowhistorydetailhistory} />
-// //           }
-          
-// //           <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-6">
-// //             {allDisplayFields.length === 0 ? (
-// //               <div className="col-span-full p-12 text-center bg-white/70 rounded-2xl border border-gray-200">
-// //                 <LandPlot className="w-20 h-20 text-gray-300 mx-auto mb-4" />
-// //                 <h3 className="text-xl font-semibold text-gray-500 mb-2">
-// //                   No Fields Found
-// //                 </h3>
-// //                 <p className="text-gray-400 text-lg">
-// //                   Try adjusting your search or draw new fields on the map
-// //                 </p>
-// //               </div>
-// //             ) : (
-// //               allDisplayFields.map((farm, index) => (
-// //                 <div
-// //                   key={farm.id || farm.farm_id || index}
-// //                   onClick={() => {
-// //                     if (farm.farm_id) {
-// //                       handleFarmSelect(farm);
-// //                     } else {
-// //                       setShowhistorydetailhistory(true);
-// //                     }
-// //                   }}
-// //                   className={`group cursor-pointer transform transition-all duration-300 hover:scale-105 active:scale-95 bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg border-2 overflow-hidden hover:shadow-2xl ${
-// //                     selectedFarm?.farm_id === farm.farm_id 
-// //                       ? 'border-green-500 ring-4 ring-green-500/20' 
-// //                       : 'border-gray-100 hover:border-green-300'
-// //                   } ${
-// //                     !farm.farm_id ? 'border-l-4 border-l-blue-500' : ''
-// //                   }`}
-// //                 >
-// //                   {/* Card Header */}
-// //                   <div className={`p-6 text-white relative ${
-// //                     farm.farm_id 
-// //                       ? selectedFarm?.farm_id === farm.farm_id 
-// //                         ? 'bg-gradient-to-r from-green-600 to-emerald-600' 
-// //                         : 'bg-gradient-to-r from-blue-600 to-cyan-600'
-// //                       : 'bg-gradient-to-r from-orange-500 to-amber-500'
-// //                   }`}>
-// //                     <div className="flex items-start justify-between mb-2">
-// //                       {farm.type ? (
-// //                         farm.type === 'rectangle' ? 
-// //                           <Square className="w-8 h-8 text-white/90" /> : 
-// //                           <Hexagon className="w-8 h-8 text-white/90" />
-// //                       ) : (
-// //                         <LandPlot className="w-8 h-8 text-white/90" />
-// //                       )}
-// //                       <div className="text-right">
-// //                         <span className="text-xs font-medium bg-white/20 px-2 py-1 rounded-full">
-// //                           {farm.farm_id || farm.id}
-// //                         </span>
-// //                         {farm.type && (
-// //                           <span className="text-xs bg-white/30 px-2 py-1 rounded-full block mt-1 capitalize">
-// //                             {farm.type}
-// //                           </span>
-// //                         )}
-// //                       </div>
-// //                     </div>
-// //                     <h2 className="text-xl font-bold truncate">{farm.farm_name || farm.name}</h2>
-// //                   </div>
-
-// //                   {/* Card Body */}
-// //                   <div className="p-6 space-y-4">
-// //                     {/* Area */}
-// //                     <div className="flex items-center gap-3 p-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border border-green-100">
-// //                       <Maximize2 className="w-6 h-6 text-emerald-600" />
-// //                       <div>
-// //                         <p className="text-2xl font-bold text-gray-900">
-// //                           {farm.savedArea || farm.area}
-// //                         </p>
-// //                         <p className="text-sm text-gray-500 font-medium">{farm.unit || 'units'}</p>
-// //                       </div>
-// //                     </div>
-
-// //                     {/* Coordinates - Only for API farms */}
-// //                     {farm.coordinates && Array.isArray(farm.coordinates) && farm.coordinates[0] && farm.coordinates[0].lat && (
-// //                       <div className="bg-blue-50 rounded-xl p-4 border border-blue-100">
-// //                         <div className="flex items-center gap-2 mb-3">
-// //                           <MapPin className="w-4 h-4 text-blue-700" />
-// //                           <h4 className="font-semibold text-blue-800 text-sm uppercase tracking-wide">
-// //                             Coordinates
-// //                           </h4>
-// //                         </div>
-// //                         <div className="max-h-24 overflow-y-auto scrollbar-hide space-y-1">
-// //                           {farm.coordinates.slice(0, 3).map((coord, coordIndex) => (
-// //                             <div
-// //                               key={coordIndex}
-// //                               className="text-sm text-blue-700 font-mono"
-// //                             >
-// //                               {coord.lat.toFixed(6)}, {coord.lng.toFixed(6)}
-// //                             </div>
-// //                           ))}
-// //                           {farm.coordinates.length > 3 && (
-// //                             <div className="text-xs text-blue-600 font-medium">
-// //                               +{farm.coordinates.length - 3} more points
-// //                             </div>
-// //                           )}
-// //                         </div>
-// //                       </div>
-// //                     )}
-// //                   </div>
-// //                 </div>
-// //               ))
-// //             )}
-// //           </div>
-// //         </div>
-
-// //         {/* Shape Details Modal */}
-// //         <ShapeDetailsModal
-// //           shape={selectedShape}
-// //           isOpen={showShapeModal}
-// //           onClose={() => setShowShapeModal(false)}
-// //           onSave={handleSaveShape}
-// //         />
-// //       </div>
-// //     </ProtectedPage>
-// //   );
-// // }
-// // // "use client";
-// // // import React, { useEffect, useState, useRef } from "react";
-// // // import {
-// // //   Search,
-// // //   LandPlot,
-// // //   MapPin,
-// // //   Maximize2,
-// // //   Square,
-// // //   Hexagon,
-// // // } from "lucide-react";
-// // // import { useRouter } from "next/navigation";
-// // // import ProtectedPage from "../contact/ProtectedPage/AuthorizedPage";
-// // // import History_detail_history from "../dashboard/History_detail_history";
-// // // import dynamic from 'next/dynamic';
-
-// // // // Dynamically import Leaflet components with no SSR
-// // // const MapContainer = dynamic(
-// // //   () => import('react-leaflet').then((mod) => mod.MapContainer),
-// // //   { ssr: false }
-// // // );
-// // // const TileLayer = dynamic(
-// // //   () => import('react-leaflet').then((mod) => mod.TileLayer),
-// // //   { ssr: false }
-// // // );
-// // // const Polygon = dynamic(
-// // //   () => import('react-leaflet').then((mod) => mod.Polygon),
-// // //   { ssr: false }
-// // // );
-// // // const Rectangle = dynamic(
-// // //   () => import('react-leaflet').then((mod) => mod.Rectangle),
-// // //   { ssr: false }
-// // // );
-
-// // // // Shape Details Modal Component
-// // // function ShapeDetailsModal({ shape, isOpen, onClose, onSave }) {
-// // //   const [formData, setFormData] = useState({
-// // //     name: '',
-// // //     area: '',
-// // //     unit: 'hectares'
-// // //   });
-
-// // //   useEffect(() => {
-// // //     if (shape) {
-// // //       setFormData({
-// // //         name: `Field-${shape.id.slice(-4)}`,
-// // //         area: shape.areaHectares,
-// // //         unit: 'hectares'
-// // //       });
-// // //     }
-// // //   }, [shape]);
-
-// // //   const handleSubmit = (e) => {
-// // //     e.preventDefault();
-// // //     onSave({
-// // //       ...shape,
-// // //       name: formData.name,
-// // //       savedArea: formData.area,
-// // //       unit: formData.unit
-// // //     });
-// // //     onClose();
-// // //   };
-
-// // //   if (!isOpen) return null;
-
-// // //   return (
-// // //     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-// // //       <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
-// // //         <h3 className="text-xl font-bold text-gray-800 mb-4">
-// // //           Save Field Shape
-// // //         </h3>
-        
-// // //         <form onSubmit={handleSubmit} className="space-y-4">
-// // //           <div>
-// // //             <label className="block text-sm font-medium text-gray-700 mb-1">
-// // //               Field Name
-// // //             </label>
-// // //             <input
-// // //               type="text"
-// // //               required
-// // //               className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500"
-// // //               value={formData.name}
-// // //               onChange={(e) => setFormData({...formData, name: e.target.value})}
-// // //             />
-// // //           </div>
-          
-// // //           <div>
-// // //             <label className="block text-sm font-medium text-gray-700 mb-1">
-// // //               Area
-// // //             </label>
-// // //             <div className="flex gap-2">
-// // //               <input
-// // //                 type="number"
-// // //                 required
-// // //                 step="0.01"
-// // //                 className="flex-1 p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500"
-// // //                 value={formData.area}
-// // //                 onChange={(e) => setFormData({...formData, area: e.target.value})}
-// // //               />
-// // //               <select
-// // //                 className="p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500"
-// // //                 value={formData.unit}
-// // //                 onChange={(e) => setFormData({...formData, unit: e.target.value})}
-// // //               >
-// // //                 <option value="hectares">Hectares</option>
-// // //                 <option value="acres">Acres</option>
-// // //                 <option value="sqmeters">Square Meters</option>
-// // //               </select>
-// // //             </div>
-// // //           </div>
-          
-// // //           <div className="bg-gray-50 p-3 rounded-lg">
-// // //             <p className="text-sm text-gray-600">
-// // //               <strong>Auto ID:</strong> {shape?.id}
-// // //             </p>
-// // //             <p className="text-sm text-gray-600">
-// // //               <strong>Shape Type:</strong> {shape?.type}
-// // //             </p>
-// // //           </div>
-          
-// // //           <div className="flex gap-3 pt-4">
-// // //             <button
-// // //               type="button"
-// // //               onClick={onClose}
-// // //               className="flex-1 py-3 px-4 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors"
-// // //             >
-// // //               Cancel
-// // //             </button>
-// // //             <button
-// // //               type="submit"
-// // //               className="flex-1 py-3 px-4 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors"
-// // //             >
-// // //               Save Field
-// // //             </button>
-// // //           </div>
-// // //         </form>
-// // //       </div>
-// // //     </div>
-// // //   );
-// // // }
-
-// // // function DrawingTools({ onShapeCreated, farms }) {
-// // //   const [drawnShapes, setDrawnShapes] = useState([]);
-// // //   const [EditControl, setEditControl] = useState(null);
-
-// // //   // Load EditControl dynamically
-// // //   useEffect(() => {
-// // //     import("react-leaflet-draw").then((module) => {
-// // //       setEditControl(() => module.EditControl);
-// // //     });
-// // //   }, []);
-
-// // //   // Load shapes from localStorage
-// // //   useEffect(() => {
-// // //     const savedShapes = localStorage.getItem("farmShapes");
-// // //     if (savedShapes) {
-// // //       setDrawnShapes(JSON.parse(savedShapes));
-// // //     }
-// // //   }, []);
-
-// // //   const handleCreated = (e) => {
-// // //     const { layer, layerType } = e;
-// // //     const shape = layer.toGeoJSON();
-
-// // //     const area = calculateArea(shape);
-
-// // //     const newShape = {
-// // //       id: `shape-${Date.now()}`,
-// // //       type: layerType,
-// // //       coordinates: shape.geometry.coordinates,
-// // //       area: area,
-// // //       areaHectares: (area / 10000).toFixed(2),
-// // //       createdAt: new Date().toISOString(),
-// // //     };
-
-// // //     const updatedShapes = [...drawnShapes, newShape];
-// // //     setDrawnShapes(updatedShapes);
-
-// // //     localStorage.setItem("farmShapes", JSON.stringify(updatedShapes));
-
-// // //     onShapeCreated(newShape);
-
-// // //     layer.remove();
-// // //   };
-
-// // //   const calculateArea = (geoJson) => {
-// // //     const coords = geoJson.geometry.coordinates[0];
-// // //     let area = 0;
-
-// // //     for (let i = 0; i < coords.length - 1; i++) {
-// // //       const [x1, y1] = coords[i];
-// // //       const [x2, y2] = coords[i + 1];
-// // //       area += x1 * y2 - x2 * y1;
-// // //     }
-
-// // //     return Math.abs(area) / 2;
-// // //   };
-
-// // //   if (!EditControl) return null;
-
-// // //   const FeatureGroupComponent = dynamic(
-// // //     () =>
-// // //       import("react-leaflet").then((mod) => {
-// // //         return mod.FeatureGroup;
-// // //       }),
-// // //     { ssr: false }
-// // //   );
-
-// // //   return (
-// // //     <>
-// // //       <FeatureGroupComponent>
-// // //         <EditControl
-// // //           position="topright"
-// // //           onCreated={handleCreated}
-// // //           draw={{
-// // //             rectangle: true,
-// // //             polygon: true,
-// // //             marker: false,
-// // //             circle: false,
-// // //             circlemarker: false,
-// // //             polyline: false,
-// // //           }}
-// // //         />
-// // //       </FeatureGroupComponent>
-
-// // //       {/* Render API farms */}
-// // //       {farms.map(
-// // //         (farm, index) =>
-// // //           farm.coordinates && (
-// // //             <Polygon
-// // //               key={`farm-${index}`}
-// // //               positions={farm.coordinates.map((c) => [c.lat, c.lng])}
-// // //               pathOptions={{ color: "blue", fillOpacity: 0.1 }}
-// // //             />
-// // //           )
-// // //       )}
-
-// // //       {/* Render saved shapes */}
-// // //       {drawnShapes.map((shape, index) =>
-// // //         shape.type === "polygon" ? (
-// // //           <Polygon
-// // //             key={index}
-// // //             positions={shape.coordinates[0].map((c) => [c[1], c[0]])}
-// // //             pathOptions={{ color: "green", fillOpacity: 0.3 }}
-// // //           />
-// // //         ) : shape.type === "rectangle" ? (
-// // //           <Rectangle
-// // //             key={index}
-// // //             bounds={shape.coordinates[0].map((c) => [c[1], c[0]])}
-// // //             pathOptions={{ color: "orange", fillOpacity: 0.3 }}
-// // //           />
-// // //         ) : null
-// // //       )}
-// // //     </>
-// // //   );
-// // // }
-
-
-// // // // Main Map Component
-// // // function FarmMap({ farms, onShapeCreated }) {
-// // //   const [isClient, setIsClient] = useState(false);
-  
-// // //   useEffect(() => {
-// // //     setIsClient(true);
-// // //   }, []);
-
-// // //   if (!isClient) {
-// // //     return (
-// // //       <div className="h-full w-full flex items-center justify-center bg-gray-100 rounded-2xl">
-// // //         <div className="text-center">
-// // //           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
-// // //           <p className="text-gray-600">Loading Map...</p>
-// // //         </div>
-// // //       </div>
-// // //     );
-// // //   }
-
-// // //   return (
-// // //     <div className="size-[500px]">
-      
-// // //     <MapContainer
-// // //       center={[20.5937, 78.9629]} // Center of India
-// // //       zoom={5}
-// // //       style={{ height: '100%', width: '100%', borderRadius: '16px' }}
-// // //       >
-// // //       <TileLayer
-// // //         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-// // //         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-// // //         />
-// // //       <DrawingTools 
-// // //         onShapeCreated={onShapeCreated} 
-// // //         farms={farms}
-// // //         />
-// // //     </MapContainer>
-// // //         </div>
-// // //   );
-// // // }
-
-// // // export default function Fields() {
-// // //   const [allFields, setAllFields] = useState([]);
-// // //   const [loading, setLoading] = useState(true);
-// // //   const [searchTerm, setSearchTerm] = useState("");
-// // //   const [showhistorydetailhistory, setShowhistorydetailhistory] = useState(false);
-// // //   const [selectedShape, setSelectedShape] = useState(null);
-// // //   const [showShapeModal, setShowShapeModal] = useState(false);
-// // //   const [savedFields, setSavedFields] = useState([]);
-
-// // //   // Load saved fields from localStorage
-// // //   useEffect(() => {
-// // //     const saved = localStorage.getItem('savedFields');
-// // //     if (saved) {
-// // //       setSavedFields(JSON.parse(saved));
-// // //     }
-// // //   }, []);
-
-// // //   // ✅ Fetch API data
-// // //   useEffect(() => {
-// // //     const fetchFields = async () => {
-// // //       try {
-// // //         setLoading(true);
-// // //         const response = await fetch(
-// // //           "https://earthscansystems.com/farmerdatauser/userfarm/",{
-// // //             headers: {
-// // //               "Content-Type": "application/json",
-// // //               "Authorization": `Bearer ${localStorage.getItem("access")}`,
-// // //             },
-// // //           }
-// // //         );
-// // //         if (!response.ok) {
-// // //           throw new Error("Failed to fetch fields");
-// // //         }
-// // //         const data = await response.json();
-
-// // //         if (Array.isArray(data)) {
-// // //           setAllFields(data);
-// // //         } else {
-// // //           setAllFields([data]);
-// // //         }
-// // //       } catch (error) {
-// // //         console.error("Error fetching fields:", error);
-// // //       } finally {
-// // //         setLoading(false);
-// // //       }
-// // //     };
-
-// // //     fetchFields();
-// // //   }, []);
-
-// // //   const handleShapeCreated = (shape) => {
-// // //     setSelectedShape(shape);
-// // //     setShowShapeModal(true);
-// // //   };
-
-// // //   const handleSaveShape = (savedShape) => {
-// // //     const updatedFields = [...savedFields, savedShape];
-// // //     setSavedFields(updatedFields);
-// // //     localStorage.setItem('savedFields', JSON.stringify(updatedFields));
-// // //   };
-
-// // //   // ✅ Filter logic
-// // //   const filteredFields = allFields.filter(
-// // //     (farm) =>
-// // //       farm.farm_id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-// // //       farm.farm_name?.toLowerCase().includes(searchTerm.toLowerCase())
-// // //   );
-
-// // //   // Combine API fields and saved drawn fields
-// // //   const allDisplayFields = [...filteredFields, ...savedFields];
-
-// // //   // ✅ Loading UI
-// // //   if (loading) {
-// // //     return (
-// // //       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 p-6">
-// // //         <div className="">
-// // //           <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-xl p-8">
-// // //             <div className="animate-pulse">
-// // //               <div className="h-8 bg-gray-200 rounded-lg w-48 mb-8"></div>
-// // //               <div className="space-y-4">
-// // //                 {[1, 2, 3].map((i) => (
-// // //                   <div
-// // //                     key={i}
-// // //                     className="flex items-center space-x-4 p-4"
-// // //                   >
-// // //                     <div className="w-16 h-16 bg-gray-200 rounded-full"></div>
-// // //                     <div className="flex-1">
-// // //                       <div className="h-4 bg-gray-200 rounded w-32 mb-2"></div>
-// // //                       <div className="h-3 bg-gray-200 rounded w-48"></div>
-// // //                     </div>
-// // //                     <div className="h-8 bg-gray-200 rounded-full w-20"></div>
-// // //                   </div>
-// // //                 ))}
-// // //               </div>
-// // //             </div>
-// // //           </div>
-// // //         </div>
-// // //       </div>
-// // //     );
-// // //   }
-
-// // //   return (
-// // //     <ProtectedPage>
-// // //       <div className="bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex flex-col h-screen overflow-hidden">
-// // //         <div className="flex-1 flex flex-col p-3">
-// // //           {/* Map Section */}
-// // //           <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg mb-6 flex-1 min-h-[400px]">
-// // //             <FarmMap farms={allFields} onShapeCreated={handleShapeCreated} />
-// // //           </div>
-
-// // //           {/* Header Section */}
-// // //           <div className="mb-6">
-// // //             <div className="flex items-center justify-between mb-6">
-// // //               <div>
-// // //                 <h1 className="text-4xl font-bold bg-[var(--color)] bg-clip-text text-transparent mb-2">
-// // //                   Registered Fields
-// // //                 </h1>
-// // //                 <p className="text-gray-600">
-// // //                   Manage and monitor all your fields
-// // //                 </p>
-// // //               </div>
-// // //               <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg">
-// // //                 <div className="text-center">
-// // //                   <div className="text-3xl font-bold text-green-700">
-// // //                     {allDisplayFields.length}
-// // //                   </div>
-// // //                   <div className="text-sm text-gray-500">
-// // //                     Total Fields
-// // //                   </div>
-// // //                 </div>
-// // //               </div>
-// // //             </div>
-
-// // //             {/* Search Bar */}
-// // //             <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg p-6 mb-6">
-// // //               <div className="relative">
-// // //                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-// // //                 <input
-// // //                   type="text"
-// // //                   placeholder="Search by Farm Id or name..."
-// // //                   className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-green-600 transition-all duration-200 bg-white/50"
-// // //                   value={searchTerm}
-// // //                   onChange={(e) => setSearchTerm(e.target.value)}
-// // //                 />
-// // //               </div>
-// // //             </div>
-// // //           </div>
-
-// // //           {/* Cards Section */}
-// // //           {showhistorydetailhistory &&
-// // //             <History_detail_history setShowhistorydetailhistory={setShowhistorydetailhistory} />
-// // //           }
-          
-// // //           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 pb-6">
-// // //             {allDisplayFields.length === 0 ? (
-// // //               <div className="col-span-full p-12 text-center bg-white/70 rounded-2xl">
-// // //                 <LandPlot className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-// // //                 <h3 className="text-lg font-semibold text-gray-500 mb-2">
-// // //                   No Fields Found
-// // //                 </h3>
-// // //                 <p className="text-gray-400">
-// // //                   Try adjusting your search or draw new fields on the map
-// // //                 </p>
-// // //               </div>
-// // //             ) : (
-// // //               allDisplayFields.map((farm, index) => (
-// // //                 <div
-// // //                   key={farm.id || farm.farm_id || index}
-// // //                   onClick={() => farm.farm_id && setShowhistorydetailhistory(true)}
-// // //                   className={`group cursor-pointer active:scale-90 bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-100 overflow-hidden hover:shadow-2xl transition-all duration-300 ${
-// // //                     !farm.farm_id ? 'border-l-4 border-l-green-500' : ''
-// // //                   }`}
-// // //                 >
-// // //                   {/* Card Header */}
-// // //                   <div className={`p-6 text-white relative ${
-// // //                     farm.farm_id ? 'bg-green-700' : 'bg-blue-600'
-// // //                   }`}>
-// // //                     <div className="flex items-start justify-between mb-2">
-// // //                       {farm.type ? (
-// // //                         farm.type === 'rectangle' ? <Square className="w-8 h-8 text-white/80" /> : <Hexagon className="w-8 h-8 text-white/80" />
-// // //                       ) : (
-// // //                         <LandPlot className="w-8 h-8 text-white/80" />
-// // //                       )}
-// // //                       <div className="text-right">
-// // //                         <span className="text-xs underline underline-offset-2 block">
-// // //                           {farm.farm_id || farm.id}
-// // //                         </span>
-// // //                         {farm.type && (
-// // //                           <span className="text-xs bg-white/20 px-2 py-1 rounded-full">
-// // //                             {farm.type}
-// // //                           </span>
-// // //                         )}
-// // //                       </div>
-// // //                     </div>
-// // //                     <h2 className="text-xl font-bold">{farm.farm_name || farm.name}</h2>
-// // //                   </div>
-
-// // //                   {/* Card Body */}
-// // //                   <div className="p-6 space-y-4">
-// // //                     {/* Area */}
-// // //                     <div className="flex items-center gap-3">
-// // //                       <Maximize2 className="w-5 h-5 text-emerald-600" />
-// // //                       <div>
-// // //                         <p className="text-2xl font-bold text-gray-900">
-// // //                           {farm.savedArea || farm.area}
-// // //                         </p>
-// // //                         <p className="text-sm text-gray-500">{farm.unit || 'units'}</p>
-// // //                       </div>
-// // //                     </div>
-
-// // //                     {/* Coordinates - Only for API farms */}
-// // //                     {farm.coordinates && Array.isArray(farm.coordinates) && farm.coordinates[0] && farm.coordinates[0].lat && (
-// // //                       <div className="bg-green-50 rounded-xl p-4">
-// // //                         <div className="flex items-center gap-2 mb-3">
-// // //                           <MapPin className="w-4 h-4 text-green-700" />
-// // //                           <h4 className="font-semibold text-green-800 text-sm uppercase tracking-wide">
-// // //                             Coordinates
-// // //                           </h4>
-// // //                         </div>
-// // //                         <div className="max-h-24 overflow-y-auto scrollbar-hide">
-// // //                           {farm.coordinates.map((coord, coordIndex) => (
-// // //                             <div
-// // //                               key={coordIndex}
-// // //                               className="text-sm text-gray-700"
-// // //                             >
-// // //                               {coord.lat.toFixed(4)}, {coord.lng.toFixed(4)}
-// // //                             </div>
-// // //                           ))}
-// // //                         </div>
-// // //                       </div>
-// // //                     )}
-// // //                   </div>
-// // //                 </div>
-// // //               ))
-// // //             )}
-// // //           </div>
-// // //         </div>
-
-// // //         {/* Shape Details Modal */}
-// // //         <ShapeDetailsModal
-// // //           shape={selectedShape}
-// // //           isOpen={showShapeModal}
-// // //           onClose={() => setShowShapeModal(false)}
-// // //           onSave={handleSaveShape}
-// // //         />
-// // //       </div>
-// // //     </ProtectedPage>
-// // //   );
-// // // }
-// // // "use client";
-// // // import React, { useEffect, useState } from "react";
-// // // import {
-// // //   Search,
-// // //   LandPlot,
-// // //   MapPin,
-// // //   Maximize2,
-// // // } from "lucide-react";
-// // // // import Sidebar from "@/components/sidebar/Sidebar";
-// // // import { useRouter } from "next/navigation";
-// // // import ProtectedPage from "../contact/ProtectedPage/AuthorizedPage";
-// // // import History_detail_history from "../dashboard/History_detail_history";
-
-// // // export default function Fields() {
-// // //   const [allFields, setAllFields] = useState([]);
-// // //   const [loading, setLoading] = useState(true);
-// // //   const [searchTerm, setSearchTerm] = useState("");
-// // //   const [showhistorydetailhistory, setShowhistorydetailhistory] = useState(false);
-// // //   // const router = useRouter(); 
-
-
-
-// // //   // ✅ Fetch API data
-// // //   useEffect(() => {
-// // //     const fetchFields = async () => {
-// // //       try {
-// // //         setLoading(true);
-// // //         const response = await fetch(
-// // //           "https://earthscansystems.com/farmerdatauser/userfarm/",{
-// // //             headers: {
-// // //               "Content-Type": "application/json",
-// // //               "Authorization": `Bearer ${localStorage.getItem("access")}`, // ✅ add this line
-   
-// // //              },
-// // //           }
-// // //         );
-// // //         if (!response.ok) {
-// // //           throw new Error("Failed to fetch fields");
-// // //         }
-// // //         const data = await response.json();
-
-// // //         // ✅ Ensure array
-// // //         if (Array.isArray(data)) {
-// // //           setAllFields(data);
-// // //         } else {
-// // //           setAllFields([data]);
-// // //         }
-// // //       } catch (error) {
-// // //         console.error("Error fetching fields:", error);
-// // //       } finally {
-// // //         setLoading(false);
-// // //       }
-// // //     };
-
-// // //     fetchFields();
-// // //   }, []);
-
-// // //   // ✅ Filter logic
-// // //   const filteredFields = allFields.filter(
-// // //     (farm) =>
-// // //       farm.farm_id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-// // //       farm.farm_name?.toLowerCase().includes(searchTerm.toLowerCase())
-// // //   );
-
-// // //   // ✅ Loading UI
-// // //   if (loading) {
-// // //     return (
-// // //       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 p-6">
-// // //         <div className="">
-// // //           <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-xl p-8">
-// // //             <div className="animate-pulse">
-// // //               <div className="h-8 bg-gray-200 rounded-lg w-48 mb-8"></div>
-// // //               <div className="space-y-4">
-// // //                 {[1, 2, 3].map((i) => (
-// // //                   <div
-// // //                     key={i}
-// // //                     className="flex items-center space-x-4 p-4"
-// // //                   >
-// // //                     <div className="w-16 h-16 bg-gray-200 rounded-full"></div>
-// // //                     <div className="flex-1">
-// // //                       <div className="h-4 bg-gray-200 rounded w-32 mb-2"></div>
-// // //                       <div className="h-3 bg-gray-200 rounded w-48"></div>
-// // //                     </div>
-// // //                     <div className="h-8 bg-gray-200 rounded-full w-20"></div>
-// // //                   </div>
-// // //                 ))}
-// // //               </div>
-// // //             </div>
-// // //           </div>
-// // //         </div>
-// // //       </div>
-// // //     );
-// // //   }
-
-// // //   // ✅ Main UI
-// // //   return (
-// // //     <ProtectedPage>
-// // //     <div className="bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50  flex gap-3 h-screen  overflow-hidden">
-// // //       {/* <Sidebar /> */}
-// // //       <div className="w-full p-3 h-screen overflow-y-scroll">
-// // //         {/* Header Section */}
-// // //         <div className="mb-8">
-// // //           <div className="flex items-center justify-between mb-6">
-// // //             <div>
-// // //               <h1 className="text-4xl font-bold bg-[var(--color)] bg-clip-text text-transparent mb-2">
-// // //                 Registered Fields
-// // //               </h1>
-// // //               <p className="text-gray-600">
-// // //                 Manage and monitor all your fields
-// // //               </p>
-// // //             </div>
-// // //             <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg">
-// // //               <div className="text-center">
-// // //                 <div className="text-3xl font-bold text-green-700">
-// // //                   {allFields.length}
-// // //                 </div>
-// // //                 <div className="text-sm text-gray-500">
-// // //                   Total Fields
-// // //                 </div>
-// // //               </div>
-// // //             </div>
-// // //           </div>
-
-// // //           {/* Search Bar */}
-// // //           <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg p-6 mb-6">
-// // //             <div className="relative">
-// // //               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-// // //               <input
-// // //                 type="text"
-// // //                 placeholder="Search by Farm Id or name..."
-// // //                 className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-green-600 transition-all duration-200 bg-white/50"
-// // //                 value={searchTerm}
-// // //                 onChange={(e) => setSearchTerm(e.target.value)}
-// // //               />
-// // //             </div>
-// // //           </div>
-// // //         </div>
-
-// // //         {/* Cards */}
-// // //         {showhistorydetailhistory &&
-// // //            <History_detail_history setShowhistorydetailhistory={setShowhistorydetailhistory} />
-// // //         }
-// // //         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          
-// // //           {filteredFields.length === 0 ? (
-// // //             <div className="col-span-full p-12 text-center bg-white/70 rounded-2xl">
-// // //               <LandPlot className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-// // //               <h3 className="text-lg font-semibold text-gray-500 mb-2">
-// // //                 No Fields Found
-// // //               </h3>
-// // //               <p className="text-gray-400">
-// // //                 Try adjusting your search
-// // //               </p>
-// // //             </div>
-// // //           ) : (
-// // //             filteredFields.map((farm, index) => (
-// // //               <div
-// // //                 key={index}
-// // //               onClick={()=>{setShowhistorydetailhistory(true)}}
-// // //                 className="group cursor-pointer active:scale-90 bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-100 overflow-hidden hover:shadow-2xl transition-all duration-300">
-               
-// // //                 {/* Card Header */}
-// // //                 <div className="bg-green-700 p-6 text-white relative">
-// // //                   <div className="flex items-start justify-between mb-2">
-// // //                     <LandPlot className="w-8 h-8 text-white/80" />
-// // //                     <span className="text-xs underline underline-offset-2">
-// // //                       {farm.farm_id}
-// // //                     </span>
-// // //                   </div>
-// // //                   <h2 className="text-xl font-bold">{farm.farm_name}</h2>
-// // //                 </div>
-
-// // //                 {/* Card Body */}
-// // //                 <div className="p-6 space-y-4">
-// // //                   {/* Area */}
-// // //                   <div className="flex items-center gap-3">
-// // //                     <Maximize2 className="w-5 h-5 text-emerald-600" />
-// // //                     <div>
-// // //                       <p className="text-2xl font-bold text-gray-900">
-// // //                         {farm.area}
-// // //                       </p>
-// // //                       <p className="text-sm text-gray-500">{farm.unit}</p>
-// // //                     </div>
-// // //                   </div>
-
-// // //                   {/* Coordinates */}
-// // //                   <div className="bg-green-50 rounded-xl p-4">
-// // //                     <div className="flex items-center gap-2 mb-3">
-// // //                       <MapPin className="w-4 h-4 text-green-700" />
-// // //                       <h4 className="font-semibold text-green-800 text-sm uppercase tracking-wide">
-// // //                         Coordinates
-// // //                       </h4>
-// // //                     </div>
-// // //                     <div className="max-h-24 overflow-y-auto scrollbar-hide">
-// // //                       {farm.coordinates?.map((coord, coordIndex) => (
-// // //                         <div
-// // //                           key={coordIndex}
-// // //                           className="text-sm text-gray-700"
-// // //                         >
-// // //                           {coord.lat.toFixed(4)}, {coord.lng.toFixed(4)}
-// // //                         </div>
-// // //                       ))}
-// // //                     </div>
-// // //                   </div>
-// // //                 </div>
-// // //               </div>
-// // //             ))
-// // //           )}
-// // //         </div>
-// // //       </div>
-// // //     </div>
-// // //     </ProtectedPage>
-// // //   );
-// // // }

@@ -1,25 +1,34 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { authAPI } from "@/utils/auth";
 
 export default function ProtectedPage({ children }) {
   const router = useRouter();
   const [isAuthenticated, setIsAuthenticated] = useState(null); // null = checking
 
   useEffect(() => {
-    const token = localStorage.getItem("access"); // or your auth logic
+    const verifyAuth = async () => {
+      try {
+        // Try to fetch user details using the cookie
+        await authAPI.getMe();
+        setIsAuthenticated(true);
+      } catch (error) {
+        // Suppress 401 Unauthorized errors as they are expected when not logged in
+        if (error.response && error.response.status !== 401) {
+          console.error("Auth check failed", error);
+        }
+        setIsAuthenticated(false);
+        router.replace("/login");
+      }
+    };
 
-    if (token) {
-      setIsAuthenticated(true); // user is authenticated
-    } else {
-      setIsAuthenticated(false); // user is not authenticated
-      router.replace("/login"); // redirect to login page
-    }
+    verifyAuth();
   }, [router]);
 
   if (isAuthenticated === null) {
-    // still checking auth, don't render anything
-    return null; 
+    // still checking auth, maybe show a spinner?
+    return <div className="flex h-screen w-full items-center justify-center">Loading...</div>;
   }
 
   if (!isAuthenticated) {

@@ -199,13 +199,13 @@ export default function Header() {
             <span>Login</span>
             <div className="w-1.5 h-1.5 rounded-full bg-white group-hover:animate-pulse" />
           </button>
-            <button
+            {/* <button
             onClick={handleRegister}
             className="group cursor-pointer relative px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-xs font-semibold rounded-lg hover:shadow-lg hover:shadow-emerald-500/50 hover:scale-105 transition-all duration-200 flex items-center gap-2"
           >
             <span>Sign Up</span>
             <div className="w-1.5 h-1.5 rounded-full bg-white group-hover:animate-pulse" />
-          </button>
+          </button> */}
         </nav>
 
         {/* Mobile Toggle */}
