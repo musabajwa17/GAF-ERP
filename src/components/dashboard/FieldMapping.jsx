@@ -31,6 +31,7 @@ import {
   Upload,
   Edit3,
   ArrowLeft,
+  X,
 } from "lucide-react";
 import ProtectedPage from "../contact/ProtectedPage/AuthorizedPage";
 import SoilHealthTracker from "./SoilHealth";
@@ -187,6 +188,10 @@ const FieldMapping = forwardRef(({ onAreaData, searchLocation }, ref) => {
   const [forms, setForms] = useState([]);
   const [uploadedShapes, setUploadedShapes] = useState([]);
   const [editableLayers, setEditableLayers] = useState(new Map());
+  const [showFieldModal, setShowFieldModal] = useState(false);
+  const [savedFields, setSavedFields] = useState([]);
+  const [selectedFieldId, setSelectedFieldId] = useState(null);
+  const fieldLayersRef = useRef(new Map());
 
   /* Fix icons on mount */
   useEffect(() => {
@@ -201,6 +206,8 @@ const FieldMapping = forwardRef(({ onAreaData, searchLocation }, ref) => {
       if (saved) setAreaInfo(JSON.parse(saved));
       const unit = localStorage.getItem("areaUnit");
       if (unit === "ha" || unit === "ac") setAreaUnit(unit);
+      const savedFieldsData = localStorage.getItem("savedFields");
+      if (savedFieldsData) setSavedFields(JSON.parse(savedFieldsData));
     } catch (e) {
       console.warn("Failed to load saved data", e);
     }
@@ -216,6 +223,90 @@ const FieldMapping = forwardRef(({ onAreaData, searchLocation }, ref) => {
     if (typeof window === "undefined") return;
     localStorage.setItem("areaUnit", areaUnit);
   }, [areaUnit]);
+
+  /* Render saved fields on map */
+  useEffect(() => {
+    if (!mapRef.current || typeof window === "undefined") return;
+    
+    // Clear existing field layers
+    fieldLayersRef.current.forEach((layer) => {
+      try {
+        mapRef.current?.removeLayer(layer);
+      } catch (e) {
+        // Layer might not be on map
+      }
+    });
+    fieldLayersRef.current.clear();
+
+    // Add all saved fields to map
+    savedFields.forEach((field) => {
+      if (field.areaInfo && field.areaInfo.coordinates) {
+        const coords = field.areaInfo.coordinates.map(c => [c.lat, c.lng]);
+        const polygon = L.polygon(coords, {
+          color: '#0ea5e9',
+          fillColor: '#0ea5e9',
+          fillOpacity: 0.3,
+          weight: 2,
+        });
+
+        // Add popup on click
+        polygon.bindPopup(`<div style="text-align: center; font-weight: bold; color: #059669;">${field.farmName}</div>`, {
+          className: 'field-popup',
+        });
+
+        // Add hover tooltip on mouse over
+        polygon.on('mouseover', function() {
+          this.setStyle({ 
+            fillColor: '#10b981',
+            color: '#10b981',
+            fillOpacity: 0.5,
+            weight: 3
+          });
+          // Show tooltip
+          const tooltip = L.tooltip({
+            permanent: false,
+            direction: 'top',
+            className: 'leaflet-tooltip-custom',
+          })
+          .setContent(field.farmName)
+          .setLatLng(this.getBounds().getCenter())
+          .addTo(mapRef.current);
+          this._tooltip = tooltip;
+        });
+
+        polygon.on('mouseout', function() {
+          const isSelected = selectedFieldId === field.id;
+          this.setStyle({ 
+            fillColor: isSelected ? '#10b981' : '#0ea5e9',
+            color: isSelected ? '#10b981' : '#0ea5e9',
+            fillOpacity: isSelected ? 0.5 : 0.3,
+            weight: isSelected ? 3 : 2
+          });
+          // Remove tooltip
+          if (this._tooltip) {
+            mapRef.current?.removeLayer(this._tooltip);
+            this._tooltip = null;
+          }
+        });
+
+        polygon.addTo(mapRef.current);
+        fieldLayersRef.current.set(field.id, polygon);
+
+        // Add location marker at center of field
+        const center = polygon.getBounds().getCenter();
+        const locationMarker = L.marker(center, {
+          icon: L.icon({
+            iconUrl: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiMwZWE1ZTkiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSIxMCIvPjxwYXRoIGQ9Ik0xMiA2djEybTAgMFY2Ii8+PHBhdGggZD0iTTYgMTJoMTJNNiAxMkg2Ii8+PC9zdmc+',
+            iconSize: [24, 24],
+            iconAnchor: [12, 12],
+            popupAnchor: [0, -12],
+          })
+        });
+        locationMarker.addTo(mapRef.current);
+        fieldLayersRef.current.set(`marker-${field.id}`, locationMarker);
+      }
+    });
+  }, [savedFields]);
 
   /* Search location */
   useEffect(() => {
@@ -347,6 +438,8 @@ const FieldMapping = forwardRef(({ onAreaData, searchLocation }, ref) => {
       } else {
         updatePolygonDetails(coords);
       }
+      // Show modal after shape is created
+      setShowFieldModal(true);
     }
   };
 
@@ -782,48 +875,64 @@ const FieldMapping = forwardRef(({ onAreaData, searchLocation }, ref) => {
       </div>
 
       {/* Details */}
-      <MapDetail
-        mapAreaInfo={areaInfo || {}}
-        selectedUnit={areaUnit}
-        setSelectedUnit={setAreaUnit}
-        farmId={areaInfo?.farmId || `F-${Date.now()}`}
-        getAreaInSelectedUnit={getAreaInSelectedUnit}
-        forms={forms}
-        uploadedShapesCount={uploadedShapes.length}
-        postFields={async (payload) => {
-          setLoading(true);
-          try {
-            console.log("POST payload ->", payload);
-            const res = await fetch(
-              "https://earthscansystems.com/farmerdatauser/userfarm/",
-              {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  Authorization: `Bearer ${localStorage.getItem("access")}`,
-                },
-                body: JSON.stringify(payload),
-              }
-            );
-            const text = await res.text();
-            let data;
-            try {
-              data = JSON.parse(text);
-            } catch {
-              data = { raw: text };
+      {/* Field Modal */}
+      <FieldFormModal
+        isOpen={showFieldModal}
+        onClose={() => setShowFieldModal(false)}
+        areaInfo={areaInfo}
+        areaUnit={areaUnit}
+        onSave={(fieldData) => {
+          const newField = {
+            id: Date.now(),
+            ...fieldData,
+            areaInfo: areaInfo,
+          };
+          const updated = [newField, ...savedFields];
+          setSavedFields(updated);
+          localStorage.setItem("savedFields", JSON.stringify(updated));
+          setShowFieldModal(false);
+        }}
+      />
+
+      {/* Saved Fields Cards */}
+      <SavedFieldsCards 
+        fields={savedFields} 
+        selectedFieldId={selectedFieldId}
+        onCardClick={(id) => {
+          setSelectedFieldId(id);
+          const field = savedFields.find(f => f.id === id);
+          if (field && field.areaInfo && field.areaInfo.coordinates) {
+            // Highlight the field on map
+            const coords = field.areaInfo.coordinates.map(c => [c.lat, c.lng]);
+            
+            // Remove previous highlighted layer if exists
+            featureGroupRef.current?.clearLayers();
+            
+            // Add field as highlighted polygon
+            const polygon = L.polygon(coords, {
+              color: '#10b981',
+              fillColor: '#10b981',
+              fillOpacity: 0.5,
+              weight: 3,
+            });
+            polygon.addTo(featureGroupRef.current);
+            
+            // Store layer reference
+            fieldLayersRef.current.set(id, polygon);
+            
+            // Zoom to field
+            if (mapRef.current) {
+              mapRef.current.fitBounds(polygon.getBounds(), { padding: [50, 50] });
             }
-            if (!res.ok) {
-              console.error("Server error:", res.status, data);
-              throw new Error(
-                `Server responded ${res.status} - ${JSON.stringify(data)}`
-              );
-            }
-            setForms((p) => [data, ...p]);
-            return data;
-          } finally {
-            setLoading(false);
           }
         }}
+        onDelete={(id) => {
+          const updated = savedFields.filter(f => f.id !== id);
+          setSavedFields(updated);
+          localStorage.setItem("savedFields", JSON.stringify(updated));
+          fieldLayersRef.current.delete(id);
+          setSelectedFieldId(null);
+        }} 
       />
     </ProtectedPage>
   );
@@ -831,6 +940,312 @@ const FieldMapping = forwardRef(({ onAreaData, searchLocation }, ref) => {
 
 FieldMapping.displayName = "FieldMapping";
 export default FieldMapping;
+
+/* Field Form Modal Component */
+function FieldFormModal({ isOpen, onClose, areaInfo, areaUnit, onSave }) {
+  const [formData, setFormData] = useState({
+    farmName: "",
+    turbinNumber: "",
+    notes: "",
+    areaType: "",
+    place: "",
+  });
+  const [finalPlace, setFinalPlace] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!areaInfo?.coordinates?.length) return;
+    async function loadPlace() {
+      const center = getCentroid(areaInfo.coordinates);
+      const location = await getCustomPlace(center.lat, center.lng);
+      setFinalPlace(location);
+    }
+    loadPlace();
+  }, [areaInfo]);
+
+  const areaTypes = ["Flood", "ICP", "Trial", "Drip"];
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async () => {
+    if (!formData.farmName) {
+      alert("Please enter farm name");
+      return;
+    }
+    if (!formData.areaType) {
+      alert("Please select area type");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      onSave({
+        ...formData,
+        place: finalPlace,
+        area: areaUnit === "ac"
+          ? (areaInfo.areaKm2 * 247.105).toFixed(2)
+          : (areaInfo.areaKm2 * 100).toFixed(2),
+        areaUnit: areaUnit,
+        farmId: areaInfo.farmId,
+      });
+      // Reset form
+      setFormData({
+        farmName: "",
+        turbinNumber: "",
+        notes: "",
+        areaType: "",
+        place: "",
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        {/* Modal Header */}
+        <div className="sticky top-0 bg-gradient-to-r from-emerald-600 to-teal-600 p-6 text-white flex justify-between items-center">
+          <h2 className="text-2xl font-bold flex items-center gap-2">
+            <span>🌾</span>
+            Add Field Details
+          </h2>
+          <button
+            onClick={onClose}
+            className="text-white hover:bg-white/20 p-2 rounded-lg transition"
+          >
+            <X className="w-6 h-6" />
+          </button>
+        </div>
+
+        {/* Modal Body */}
+        <div className="p-8 space-y-6">
+          {/* Farm ID and Area Display */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="bg-gradient-to-br from-gray-50 to-blue-50 p-4 rounded-xl border border-gray-200">
+              <p className="text-gray-600 text-sm font-medium mb-1">Farm ID</p>
+              <p className="text-xl font-bold text-gray-800">{areaInfo?.farmId || "N/A"}</p>
+            </div>
+            <div className="bg-gradient-to-br from-gray-50 to-blue-50 p-4 rounded-xl border border-gray-200">
+              <p className="text-gray-600 text-sm font-medium mb-1">Area</p>
+              <p className="text-xl font-bold text-gray-800">
+                {areaUnit === "ac"
+                  ? `${(areaInfo?.areaKm2 * 247.105).toFixed(2)} ac`
+                  : `${(areaInfo?.areaKm2 * 100).toFixed(2)} ha`
+                }
+              </p>
+            </div>
+          </div>
+
+          {/* Place */}
+          <div>
+            <label className="block text-gray-700 font-semibold mb-2">Place</label>
+            <input
+              type="text"
+              disabled
+              value={finalPlace || "Loading..."}
+              className="w-full px-4 py-3 rounded-lg border border-gray-300 bg-gray-50 text-gray-700"
+            />
+          </div>
+
+          {/* Farm Name */}
+          <div>
+            <label className="block text-gray-700 font-semibold mb-2">Farm Name *</label>
+            <input
+              type="text"
+              name="farmName"
+              value={formData.farmName}
+              onChange={handleChange}
+              placeholder="Enter farm name..."
+              className="w-full px-4 py-3 rounded-lg border border-emerald-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition"
+            />
+          </div>
+
+          {/* Turbine Number */}
+          <div>
+            <label className="block text-gray-700 font-semibold mb-2">Turbine Number</label>
+            <input
+              type="text"
+              name="turbinNumber"
+              value={formData.turbinNumber}
+              onChange={handleChange}
+              placeholder="Enter turbine number..."
+              className="w-full px-4 py-3 rounded-lg border border-emerald-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition"
+            />
+          </div>
+
+          {/* Area Type */}
+          <div>
+            <label className="block text-gray-700 font-semibold mb-2">Area Type *</label>
+            <select
+              name="areaType"
+              value={formData.areaType}
+              onChange={handleChange}
+              className="w-full px-4 py-3 rounded-lg border border-emerald-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition"
+            >
+              <option value="">Select area type...</option>
+              {areaTypes.map(type => (
+                <option key={type} value={type}>{type}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Notes */}
+          <div>
+            <label className="block text-gray-700 font-semibold mb-2">Notes</label>
+            <textarea
+              name="notes"
+              value={formData.notes}
+              onChange={handleChange}
+              placeholder="Enter any notes..."
+              rows="4"
+              className="w-full px-4 py-3 rounded-lg border border-emerald-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition resize-none"
+            />
+          </div>
+        </div>
+
+        {/* Modal Footer */}
+        <div className="bg-gray-50 p-6 border-t border-gray-200 flex gap-4 justify-end">
+          <button
+            onClick={onClose}
+            className="px-6 py-2 rounded-lg border border-gray-300 text-gray-700 font-semibold hover:bg-gray-100 transition"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={submitting}
+            className="px-6 py-2 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-semibold hover:from-emerald-700 hover:to-teal-700 transition disabled:opacity-50 flex items-center gap-2"
+          >
+            {submitting ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                Saving...
+              </>
+            ) : (
+              <>
+                <Save className="w-4 h-4" />
+                Save Field
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* Saved Fields Cards Component */
+function SavedFieldsCards({ fields, onDelete, selectedFieldId, onCardClick }) {
+  if (fields.length === 0) return null;
+
+  return (
+    <div className="bg-gradient-to-br from-white via-emerald-50/30 to-teal-50/30 rounded-3xl shadow-2xl border border-emerald-100 p-8 mt-8">
+      <div className="mb-8">
+        <h2 className="font-bold text-3xl text-gray-800 flex items-center gap-3">
+          <span className="text-4xl">📋</span>
+          <span className="bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
+            Saved Fields ({fields.length})
+          </span>
+        </h2>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {fields.map((field) => {
+          const isSelected = selectedFieldId === field.id;
+          
+          return (
+            <div
+              key={field.id}
+              onClick={() => onCardClick(field.id)}
+              className={`rounded-2xl shadow-lg border overflow-hidden transition-all duration-300 cursor-pointer ${
+                isSelected
+                  ? 'bg-emerald-50 border-emerald-500 shadow-2xl ring-2 ring-emerald-400 scale-105'
+                  : 'bg-white border-emerald-100 hover:shadow-2xl hover:border-emerald-300'
+              }`}
+            >
+              {/* Card Header */}
+              <div className={`p-4 text-white transition-all duration-300 ${
+                isSelected
+                  ? 'bg-gradient-to-r from-emerald-600 to-teal-600'
+                  : 'bg-gradient-to-r from-emerald-500 to-teal-500'
+              }`}>
+                <h3 className="font-bold text-lg truncate">{field.farmName}</h3>
+                <p className="text-sm text-emerald-100">{field.areaInfo?.farmId}</p>
+              </div>
+
+              {/* Card Body */}
+              <div className="p-6 space-y-4">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-600 text-sm">Area</span>
+                    <span className="font-bold text-gray-800">
+                      {field.area} {field.areaUnit}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-600 text-sm">Type</span>
+                    <span className="inline-block px-3 py-1 rounded-full bg-emerald-100 text-emerald-700 text-sm font-semibold">
+                      {field.areaType}
+                    </span>
+                  </div>
+
+                  {field.turbinNumber && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-600 text-sm">Turbine #</span>
+                      <span className="font-semibold text-gray-800">{field.turbinNumber}</span>
+                    </div>
+                  )}
+
+                  <div className="flex items-start justify-between">
+                    <span className="text-gray-600 text-sm">Place</span>
+                    <span className="text-right text-gray-800 text-sm font-semibold max-w-[150px]">
+                      {field.place}
+                    </span>
+                  </div>
+
+                  {field.notes && (
+                    <div className="pt-2 border-t border-gray-200">
+                      <p className="text-gray-600 text-xs mb-1">Notes</p>
+                      <p className="text-gray-700 text-sm line-clamp-2">{field.notes}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Card Footer */}
+              <div className="bg-gray-50 px-6 py-3 border-t border-gray-200 flex gap-2">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete(field.id);
+                  }}
+                  className="flex-1 px-4 py-2 bg-red-50 text-red-600 rounded-lg font-semibold hover:bg-red-100 transition flex items-center justify-center gap-2"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Delete
+                </button>
+              </div>
+
+              {/* Selection Indicator */}
+              {isSelected && (
+                <div className="absolute top-2 right-2 bg-emerald-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold">
+                  ✓
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 /* MapDetail component */
 function MapDetail({

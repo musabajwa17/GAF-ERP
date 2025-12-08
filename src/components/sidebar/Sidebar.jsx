@@ -99,6 +99,10 @@ export default function Sidebar() {
 
         { name: "Land Preparation", icon: AreaChartIcon },
         { name: "Crop Planner", icon: FileText },
+        { name: "Field Registration", icon: Layers }
+        // { name: "My Lands", icon: MapPin },
+        // { name: "Land Preparation", icon: AreaChartIcon },
+
       ],
     },
     {
@@ -120,15 +124,24 @@ export default function Sidebar() {
       color: "amber",
       items: [
         { name: "Harvest Scheduling", icon: TrendingUp },
-        { name: "Shipping and Logistics", icon: Package }
+        { name: "Shipping and Logistics", icon: Package },
       ],
     },
     {
       name: "Stage 4 (Post Harvest)",
       icon: BarChart3,
       color: "purple",
+      items: [{ name: "Farm Analytics Dashboard", icon: BarChart3 }],
+    },
+    {
+      name: "Allocation ",
+      icon: MapPin,
+      color: "emerald",
       items: [
-        { name: "Farm Analytics Dashboard", icon: BarChart3 },
+        { name: "Land Registration", icon: Layers },
+        { name: "Field Allocation", icon: MapPin },
+        // { name: "Land Preparation", icon: AreaChartIcon },
+        // { name: "Crop Planner", icon: FileText },
       ],
     },
     {
@@ -295,10 +308,9 @@ export default function Sidebar() {
   return (
     <>
       <div className="flex w-full items-start h-screen overflow-hidden">
-        <aside className="w-80 h-full self-start bg-gradient-to-br from-slate-50 via-white to-slate-50 shadow-2xl flex flex-col overflow-hidden border-r border-slate-200/60">
-
+        <aside className="w-80 h-full self-start bg-gradient-to-br from-slate-50 via-white to-slate-50 shadow-2xl flex flex-col overflow-hidden  border-r border-slate-200/60">
           {/* Logo Section - INCREASED HEIGHT */}
-          <div className="w-full flex justify-start pl-5 gap-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white py-6 items-center shadow-lg">
+          <div className="w-full flex justify-start pl-5 gap-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white py-[1.7rem] items-center shadow-lg">
             <Tractor className="w-7 h-7" />
             <h1 className="text-2xl font-bold tracking-tight">GAF ERP</h1>
           </div>
@@ -399,7 +411,7 @@ export default function Sidebar() {
         <main className="flex-1 flex flex-col">
           <header className="sticky top-0 z-10">
             {/* Dynamic page header */}
-            <div className="bg-gradient-to-r from-emerald-600 to-teal-600 px-6 py-4 shadow-lg">
+            <div className="bg-gradient-to-r from-teal-600 to-emerald-600 px-6 py-[1.08REM]">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="bg-white/20 backdrop-blur-sm p-2 rounded-lg">
@@ -407,8 +419,8 @@ export default function Sidebar() {
                     {(() => {
                       const map = {
                         Dashboard: Layers,
-                        "My Lands": MapPin,
-                        "Land Registration": Layers,
+                        //"My Lands": MapPin,
+                        "Field Registration": Layers,
                         "Soil Health": Droplet,
                         "Crop Planner": FileText,
                         "Irrigation Management": Droplet,
@@ -435,29 +447,76 @@ export default function Sidebar() {
                     {(() => {
                       const map = {
                         Dashboard: ["Dashboard", "Overview and quick insights"],
-                        "My Lands": ["My Lands", "View and manage your lands"],
-                        "Land Registration": ["Land Registration", "Draw and manage your agricultural fields"],
-                        "Soil Health": ["Soil Health", "Monitor soil properties and reports"],
-                        "Crop Planner": ["Crop Planner", "Manage Crop and plans"],
-                        "Irrigation Management": ["Irrigation Management", "Manage irrigation schedules and devices"],
-                        "Labor Management": ["Labor Management", "Assign and track labor tasks"],
-                        "Weather Forecast": ["Weather Forecast", "Latest weather predictions for your area"],
-                        "Crop Management": ["Crop Management", "Plan and track sowing activities"],
-                        "Inventory": ["Inventory", "Track inventory and supplies"],
-                        "Pest Monitoring": ["Pest Monitoring", "Monitor pests and interventions"],
-                        "Land Preparation": ["Land Preparation", "Prepare your Land with digital tech"],
-                        "Harvest Scheduling": ["Harvest Scheduling", "Schedule your Harvest"],
-                        "Shipping and Logistics": ["Shipping and Logistics", "Ship your stock"],
-                        "Farm Analytics Dashboard": ["Farm Analytics Dashboard", "Manage your Finance Records"],
-                        "Admin Inventory Management": ["Inventory Management", "Manage and track inventory items"],
-                        "Finance Management": ["Finance Management", "Manage your finance records"]
+                        //    "My Lands": ["My Lands", "View and manage your lands"],
+                        "Field Registration": [
+                          "Field Registration",
+                          "Draw and manage your agricultural fields",
+                        ],
+                        "Soil Health": [
+                          "Soil Health",
+                          "Monitor soil properties and reports",
+                        ],
+                        "Crop Planner": [
+                          "Crop Planner",
+                          "Manage Crop and plans",
+                        ],
+                        "Irrigation Management": [
+                          "Irrigation Management",
+                          "Manage irrigation schedules and devices",
+                        ],
+                        "Labor Management": [
+                          "Labor Management",
+                          "Assign and track labor tasks",
+                        ],
+                        "Weather Forecast": [
+                          "Weather Forecast",
+                          "Latest weather predictions for your area",
+                        ],
+                        "Crop Management": [
+                          "Crop Management",
+                          "Plan and track sowing activities",
+                        ],
+                        Inventory: [
+                          "Inventory",
+                          "Track inventory and supplies",
+                        ],
+                        "Pest Monitoring": [
+                          "Pest Monitoring",
+                          "Monitor pests and interventions",
+                        ],
+                        "Land Preparation": [
+                          "Land Preparation",
+                          "Prepare your Land with digital tech",
+                        ],
+                        "Harvest Scheduling": [
+                          "Harvest Scheduling",
+                          "Schedule your Harvest",
+                        ],
+                        "Shipping and Logistics": [
+                          "Shipping and Logistics",
+                          "Ship your stock",
+                        ],
+                        "Farm Analytics Dashboard": [
+                          "Farm Analytics Dashboard",
+                          "Manage your Finance Records",
+                        ],
+                        "Admin Inventory Management": [
+                          "Inventory Management",
+                          "Manage and track inventory items",
+                        ],
+                        "Finance Management": [
+                          "Finance Management",
+                          "Manage your finance records",
+                        ],
                       };
 
                       const key = selected || "Dashboard";
                       const [title, desc] = map[key] || map["Dashboard"];
                       return (
                         <>
-                          <h1 className="text-2xl font-bold text-white">{title}</h1>
+                          <h1 className="text-2xl font-bold text-white">
+                            {title}
+                          </h1>
                           <p className="text-emerald-50 text-sm">{desc}</p>
                         </>
                       );
@@ -534,11 +593,14 @@ export default function Sidebar() {
             <div className="bg-white w-full h-[90vh] overflow-auto">
               {/* render selected content */}
               {(() => {
-                const selectedItem = typeof window !== "undefined" ? localStorage.getItem("selected") : selected;
+                const selectedItem =
+                  typeof window !== "undefined"
+                    ? localStorage.getItem("selected")
+                    : selected;
                 switch (selectedItem) {
-                  case "My Lands":
-                    return <Fields />;
-                  case "Land Registration":
+                  //case "My Lands":
+                  // return <Fields />;
+                  case "Field Registration":
                     return <FieldMapping />;
                   case "Soil Health":
                     return <SoilHealth />;
@@ -557,15 +619,15 @@ export default function Sidebar() {
                   case "Pest Monitoring":
                     return <PestManagement />;
                   case "Harvest Scheduling":
-                    return <Harvestschedule />
+                    return <Harvestschedule />;
                   case "Shipping and Logistics":
-                    return <Shippingandlogistics />
+                    return <Shippingandlogistics />;
                   case "Farm Analytics Dashboard":
-                    return <FarmAnalyticsDashboard />
+                    return <FarmAnalyticsDashboard />;
                   case "Land Preparation":
-                    return <LandPreparation />
+                    return <LandPreparation />;
                   case "Admin Inventory Management":
-                    return <AdminInventoryManagement />
+                    return <AdminInventoryManagement />;
                   case "Finance Management":
                     return <FinanceManagement />
                   case "Field Allocation":
@@ -578,6 +640,7 @@ export default function Sidebar() {
           </div>
         </main>
       </div>
+
     </>
   );
 }
