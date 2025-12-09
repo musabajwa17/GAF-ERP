@@ -1,23 +1,14 @@
 "use client"
 import React, { useState } from 'react';
 import { Plus, Trash2, CheckCircle, AlertCircle, Send, Calendar, Eye, X, Search, Filter, ChevronDown } from 'lucide-react';
-
+import FarmerRequestFormModal from "@/components/warehouse/farmer_request_modal"
+import ViewRequestDetailsModal from "@/components/warehouse/view_request_details"
 const uid = (prefix) => `${prefix}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
 const SEASONS = [
   { key: "kharif", label: "Kharif", labelUrdu: "خریف", color: "amber" },
   { key: "rabi", label: "Rabi", labelUrdu: "ربیع", color: "blue" }
 ];
-
-// Mock Modal Components (replace with your actual components)
-const FarmerRequestFormModal = ({ onClose, onCreate, currentSeason }) => (
-  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[1000] p-4">
-    <div className="bg-white rounded-xl p-6 max-w-md w-full">
-      <h3 className="text-lg font-bold mb-4">Create New Request</h3>
-      <button onClick={onClose} className="px-4 py-2 bg-slate-200 rounded-lg">Close</button>
-    </div>
-  </div>
-);
 
 const FarmerRequestsSection = ({ 
   farmerRequests = [], 
@@ -35,18 +26,16 @@ const FarmerRequestsSection = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
 
-  const createRequest = (farmerName, season, items) => {
-    const request = {
-      id: uid("FR"),
-      farmerName,
-      season,
-      items,
-      status: "pending",
-      createdAt: Date.now(),
-    };
-    setFarmerRequests(prev => [request, ...prev]);
-    setToast?.({ message: "Farmer request received", type: "success" });
+  const createRequest = (requestData) => {
+  const request = {
+    id: uid("PR"),
+    ...requestData,
+    status: "pending",
+    createdAt: Date.now(),
   };
+  setFarmerRequests(prev => [request, ...prev]);
+  setToast?.({ message: "Purchase request created successfully", type: "success" });
+};
 
   const checkAvailability = (request) => {
     const available = [];
@@ -152,12 +141,15 @@ const FarmerRequestsSection = ({
   };
 
   // Filter logic
-  const filteredRequests = farmerRequests.filter(req => {
-    const matchesSearch = req.farmerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         req.id.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || req.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+ // Filter logic
+const filteredRequests = farmerRequests.filter(req => {
+  const matchesSearch = req.endUser?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                       req.department?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                       req.nameCategory?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                       req.id.toLowerCase().includes(searchTerm.toLowerCase());
+  const matchesStatus = statusFilter === 'all' || req.status === statusFilter;
+  return matchesSearch && matchesStatus;
+});
 
   const statusColors = {
     pending: 'bg-amber-100 text-amber-800 border-amber-300',
@@ -216,173 +208,132 @@ const FarmerRequestsSection = ({
         </div>
       </div>
 
-      {/* Table */}
-      {filteredRequests.length === 0 ? (
-        <div className="text-center py-12 px-4">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-slate-100 rounded-full mb-3">
-            <AlertCircle className="w-8 h-8 text-slate-400" />
-          </div>
-          <p className="text-slate-600 font-medium">No requests found</p>
-          <p className="text-sm text-slate-500 mt-1">
-            {searchTerm || statusFilter !== 'all' ? 'Try adjusting your filters' : 'Create your first request to begin'}
-          </p>
-        </div>
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-slate-50 border-y border-slate-200">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Request ID</th>
-                <th className="px-6 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Farmer Name</th>
-                <th className="px-6 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Season</th>
-                <th className="px-6 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Items</th>
-                <th className="px-6 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Availability</th>
-                <th className="px-6 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Date</th>
-                <th className="px-6 py-3 text-right text-xs font-bold text-slate-700 uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-200">
-              {filteredRequests.map(req => {
-                const { available, missing } = checkAvailability(req);
-                const seasonData = SEASONS.find(s => s.key === req.season);
-                
-                return (
-                  <tr key={req.id} className="hover:bg-slate-50 transition-colors">
-                    {/* Request ID */}
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-mono font-semibold text-slate-900">{req.id}</div>
-                    </td>
+     {/* Table */}
+{filteredRequests.length === 0 ? (
+  <div className="text-center py-12 px-4">
+    <div className="inline-flex items-center justify-center w-16 h-16 bg-slate-100 rounded-full mb-3">
+      <AlertCircle className="w-8 h-8 text-slate-400" />
+    </div>
+    <p className="text-slate-600 font-medium">No requests found</p>
+    <p className="text-sm text-slate-500 mt-1">
+      {searchTerm || statusFilter !== 'all' ? 'Try adjusting your filters' : 'Create your first request to begin'}
+    </p>
+  </div>
+) : (
+  <div className="overflow-x-auto">
+    <table className="w-full">
+      <thead className="bg-slate-50 border-y border-slate-200">
+        <tr>
+          <th className="px-6 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Request ID</th>
+          <th className="px-6 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Department</th>
+          <th className="px-6 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">End-User</th>
+          <th className="px-6 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Name/Category</th>
+          <th className="px-6 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Site Name</th>
+          <th className="px-6 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Season</th>
+          <th className="px-6 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Total Items</th>
+          <th className="px-6 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Date</th>
+          <th className="px-6 py-3 text-right text-xs font-bold text-slate-700 uppercase tracking-wider">Actions</th>
+        </tr>
+      </thead>
+      <tbody className="divide-y divide-slate-200">
+        {filteredRequests.map(req => {
+          const seasonData = SEASONS.find(s => s.key === req.season);
+          
+          return (
+            <tr key={req.id} className="hover:bg-slate-50 transition-colors">
+              {/* Request ID */}
+              <td className="px-6 py-4 whitespace-nowrap">
+                <div className="text-sm font-mono font-semibold text-slate-900">{req.id}</div>
+              </td>
 
-                    {/* Farmer Name */}
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-semibold text-slate-900">{req.farmerName}</div>
-                    </td>
+              {/* Department */}
+              <td className="px-6 py-4 whitespace-nowrap">
+                <div className="text-sm font-semibold text-slate-900">{req.department}</div>
+              </td>
 
-                    {/* Season */}
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center gap-1.5">
-                        <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                        <span className={`text-sm font-semibold ${
-                          seasonData?.color === 'amber' ? 'text-amber-700' : 'text-blue-700'
-                        }`}>
-                          {seasonData?.label}
-                        </span>
-                      </div>
-                    </td>
+              {/* End-User */}
+              <td className="px-6 py-4 whitespace-nowrap">
+                <div className="text-sm font-medium text-slate-700">{req.endUser}</div>
+              </td>
 
-                    {/* Items Count */}
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-slate-700">
-                        {req.items.length} item{req.items.length !== 1 ? 's' : ''}
-                      </div>
-                    </td>
+              {/* Name/Category */}
+              <td className="px-6 py-4 whitespace-nowrap">
+                <div className="text-sm font-medium text-slate-700">{req.nameCategory}</div>
+              </td>
 
-                    {/* Availability */}
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center gap-3">
-                        {available.length > 0 && (
-                          <div className="flex items-center gap-1 text-xs font-semibold text-emerald-700">
-                            <CheckCircle className="w-3.5 h-3.5" />
-                            <span>{available.length}</span>
-                          </div>
-                        )}
-                        {missing.length > 0 && (
-                          <div className="flex items-center gap-1 text-xs font-semibold text-red-700">
-                            <AlertCircle className="w-3.5 h-3.5" />
-                            <span>{missing.length}</span>
-                          </div>
-                        )}
-                      </div>
-                    </td>
+              {/* Site Name */}
+              <td className="px-6 py-4 whitespace-nowrap">
+                <div className="text-sm text-slate-600">{req.siteName}</div>
+              </td>
 
-                    {/* Status */}
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-bold uppercase border ${statusColors[req.status]}`}>
-                        {req.status}
-                      </span>
-                    </td>
+              {/* Season */}
+              <td className="px-6 py-4 whitespace-nowrap">
+                <div className="flex items-center gap-1.5">
+                  <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                  <span className={`text-sm font-semibold ${
+                    seasonData?.color === 'amber' ? 'text-amber-700' : 'text-blue-700'
+                  }`}>
+                    {seasonData?.label}
+                  </span>
+                </div>
+              </td>
 
-                    {/* Date */}
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-xs text-slate-600">
-                        {new Date(req.createdAt).toLocaleDateString()}
-                      </div>
-                      <div className="text-xs text-slate-500">
-                        {new Date(req.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </div>
-                    </td>
+              {/* Total Items */}
+              <td className="px-6 py-4 whitespace-nowrap">
+                <div className="text-sm font-bold text-slate-900">
+                  {req.items.length} item{req.items.length !== 1 ? 's' : ''}
+                </div>
+              </td>
 
-                    {/* Actions */}
-                    <td className="px-6 py-4 whitespace-nowrap text-right">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <button
-                          onClick={() => setViewingRequest(req)}
-                          className="p-1.5 hover:bg-slate-200 rounded-md transition-colors group"
-                          title="View Details"
-                        >
-                          <Eye className="w-4 h-4 text-slate-600 group-hover:text-slate-900" />
-                        </button>
+              {/* Date */}
+              <td className="px-6 py-4 whitespace-nowrap">
+                <div className="text-xs text-slate-600">
+                  {new Date(req.requestDate).toLocaleDateString()}
+                </div>
+              </td>
 
-                        {req.status === "pending" && available.length > 0 && (
-                          <button
-                            onClick={() => issueGoods(req)}
-                            disabled={processingId === req.id}
-                            className={`p-1.5 rounded-md transition-colors group ${
-                              processingId === req.id
-                                ? "bg-emerald-100 cursor-not-allowed"
-                                : "hover:bg-emerald-100"
-                            }`}
-                            title="Issue Goods"
-                          >
-                            <CheckCircle className={`w-4 h-4 ${
-                              processingId === req.id ? "text-emerald-400" : "text-emerald-600 group-hover:text-emerald-700"
-                            }`} />
-                          </button>
-                        )}
+              {/* Actions */}
+              <td className="px-6 py-4 whitespace-nowrap text-right">
+                <div className="flex items-center justify-end gap-1.5">
+                  <button
+                    onClick={() => setViewingRequest(req)}
+                    className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-md transition-colors flex items-center gap-1.5"
+                    title="View Requested Items"
+                  >
+                    <Eye className="w-3.5 h-3.5" />
+                    View Items
+                  </button>
 
-                        {req.status === "pending" && missing.length > 0 && (
-                          <button
-                            onClick={() => sendToProcurement(req)}
-                            disabled={processingId === req.id}
-                            className={`p-1.5 rounded-md transition-colors group ${
-                              processingId === req.id
-                                ? "bg-orange-100 cursor-not-allowed"
-                                : "hover:bg-orange-100"
-                            }`}
-                            title="Send to Procurement"
-                          >
-                            <Send className={`w-4 h-4 ${
-                              processingId === req.id ? "text-orange-400" : "text-orange-600 group-hover:text-orange-700"
-                            }`} />
-                          </button>
-                        )}
-
-                        <button
-                          onClick={() => deleteRequest(req.id)}
-                          className="p-1.5 hover:bg-red-100 rounded-md transition-colors group"
-                          title="Delete Request"
-                        >
-                          <Trash2 className="w-4 h-4 text-red-600 group-hover:text-red-700" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
+                  <button
+                    onClick={() => deleteRequest(req.id)}
+                    className="p-1.5 hover:bg-red-100 rounded-md transition-colors group"
+                    title="Delete Request"
+                  >
+                    <Trash2 className="w-4 h-4 text-red-600 group-hover:text-red-700" />
+                  </button>
+                </div>
+              </td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  </div>
+)}
 
       {/* Modals */}
-      {viewingRequest && (
-        <ViewRequestModal 
-          request={viewingRequest} 
-          inventory={inventory} 
-          onClose={() => setViewingRequest(null)} 
-        />
-      )}
+   {viewingRequest && (
+  <ViewRequestDetailsModal 
+    request={viewingRequest} 
+    inventory={inventory}
+    setToast={setToast}
+    onSendToProcurement={(procRequest) => {
+      // Optional: Update parent state if needed
+      // setProcRequests(prev => [procRequest, ...prev]);
+    }}
+    onClose={() => setViewingRequest(null)} 
+  />
+)}
 
       {showForm && (
         <FarmerRequestFormModal 
@@ -396,127 +347,6 @@ const FarmerRequestsSection = ({
 };
 
 // View Request Modal
-const ViewRequestModal = ({ request, inventory, onClose }) => {
-  const seasonData = SEASONS.find(s => s.key === request.season);
-  
-  const checkAvailability = (reqItem) => {
-    const invItem = inventory.find(
-      i => i.itemId === reqItem.itemId && 
-          i.category === reqItem.category && 
-          i.unit === reqItem.unit &&
-          i.season === request.season
-    );
-    
-    const available = invItem ? invItem.qty : 0;
-    const needed = reqItem.qty;
-    const shortage = Math.max(0, needed - available);
-    
-    return { available, needed, shortage, sufficient: available >= needed };
-  };
 
-  return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[1000] p-4">
-      <div className="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-        {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
-          <div>
-            <h2 className="text-lg font-bold text-slate-900">Request Details</h2>
-            <p className="text-sm text-slate-600 mt-0.5 font-mono">{request.id}</p>
-          </div>
-          <button 
-            onClick={onClose} 
-            className="p-2 hover:bg-slate-200 rounded-lg transition-colors"
-          >
-            <X className="w-5 h-5 text-slate-600" />
-          </button>
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6">
-          {/* Info Grid */}
-          <div className="grid grid-cols-4 gap-4 mb-6">
-            <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
-              <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1">Farmer</p>
-              <p className="font-bold text-slate-900 text-sm">{request.farmerName}</p>
-            </div>
-            <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
-              <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1">Season</p>
-              <p className={`font-bold text-sm ${
-                seasonData?.color === 'amber' ? 'text-amber-700' : 'text-blue-700'
-              }`}>
-                {seasonData?.label} ({seasonData?.labelUrdu})
-              </p>
-            </div>
-            <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
-              <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1">Status</p>
-              <p className="font-bold text-slate-900 capitalize text-sm">{request.status}</p>
-            </div>
-            <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
-              <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1">Created</p>
-              <p className="text-xs text-slate-900">{new Date(request.createdAt).toLocaleString()}</p>
-            </div>
-          </div>
-
-          {/* Items Table */}
-          <div>
-            <h3 className="text-sm font-bold text-slate-900 mb-3 uppercase tracking-wide">Requested Items</h3>
-            <div className="border border-slate-200 rounded-lg overflow-hidden">
-              <table className="w-full text-sm">
-                <thead className="bg-slate-50 border-b border-slate-200">
-                  <tr>
-                    <th className="px-4 py-2 text-left text-xs font-bold text-slate-700 uppercase">Item</th>
-                    <th className="px-4 py-2 text-left text-xs font-bold text-slate-700 uppercase">Category</th>
-                    <th className="px-4 py-2 text-right text-xs font-bold text-slate-700 uppercase">Requested</th>
-                    <th className="px-4 py-2 text-right text-xs font-bold text-slate-700 uppercase">Available</th>
-                    <th className="px-4 py-2 text-right text-xs font-bold text-slate-700 uppercase">Shortage</th>
-                    <th className="px-4 py-2 text-center text-xs font-bold text-slate-700 uppercase">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200">
-                  {request.items.map((item, idx) => {
-                    const { available, needed, shortage, sufficient } = checkAvailability(item);
-                    
-                    return (
-                      <tr key={idx} className={sufficient ? 'bg-emerald-50/30' : 'bg-red-50/30'}>
-                        <td className="px-4 py-3">
-                          <p className="font-semibold text-slate-900">{item.name}</p>
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className="text-slate-600 capitalize text-xs">{item.category}</span>
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <span className="font-bold text-slate-900">{needed} {item.unit}</span>
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <span className={`font-bold ${sufficient ? 'text-emerald-700' : 'text-orange-700'}`}>
-                            {available} {item.unit}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          {shortage > 0 ? (
-                            <span className="font-bold text-red-700">{shortage} {item.unit}</span>
-                          ) : (
-                            <span className="text-slate-400">—</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          {sufficient ? (
-                            <CheckCircle className="w-5 h-5 text-emerald-600 inline-block" />
-                          ) : (
-                            <AlertCircle className="w-5 h-5 text-red-600 inline-block" />
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
 
 export default FarmerRequestsSection;

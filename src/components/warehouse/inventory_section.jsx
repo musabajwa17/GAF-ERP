@@ -214,6 +214,10 @@ const AddInventoryModal = ({ onClose, onAdd, currentSeason }) => {
               </select>
             </div>
 
+
+
+
+
             <div>
               <label className="flex items-center gap-2 text-sm font-semibold text-slate-700 mb-2">
                 Unit
@@ -228,6 +232,14 @@ const AddInventoryModal = ({ onClose, onAdd, currentSeason }) => {
                 ))}
               </select>
             </div>
+
+
+
+
+
+
+
+
           </div>
 
           <div className="mt-4">
