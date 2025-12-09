@@ -23,6 +23,7 @@ import {
   RectangleCircle,
   Tractor,
   GitGraphIcon,
+  ShoppingCart,
 } from "lucide-react";
 import Image from "next/image";
 // dashboard content components
@@ -51,6 +52,8 @@ import CropPreparation from "../dashboard/CropPreparation";
 import AdminInventoryManagement from "../dashboard/AdminInventory";
 import FinanceManagement from "../dashboard/FinanceManagement";
 import FieldAllocation from "../dashboard/FieldAllocation";
+import ProcurementOfficerModule from "../dashboard/Procurement";
+import WarehouseModule from "../dashboard/WareHouse";
 export default function Sidebar() {
   const [openStage, setOpenStage] = useState("Stage 1 (Pre-Season)");
   const [selected, setSelected] = useState(null);
@@ -110,6 +113,22 @@ export default function Sidebar() {
         { name: "Field Allocation", icon: MapPin },
         // { name: "Land Preparation", icon: AreaChartIcon },
         // { name: "Crop Planner", icon: FileText },
+      ],
+    },
+    {
+      name: "Warehouse Management",
+      icon: MapPin,
+      color: "emerald",
+      items: [
+        { name: "Warehouse Management", icon: Layers }
+      ],
+    },
+     {
+      name: "Procurement Management",
+      icon: MapPin,
+      color: "emerald",
+      items: [
+        { name: "Procurement Management", icon: Layers }
       ],
     },
   ];
@@ -347,6 +366,8 @@ export default function Sidebar() {
                         "Farm Analytics Dashboard": BarChart3,
                         "Admin Inventory Management": Package,
                         "Finance Management": BarChart3,
+                        "Procurement Management": ShoppingCart,
+                        "Warehouse Management": Package,
                       };
 
                       const key = selected || "Dashboard";
@@ -419,6 +440,14 @@ export default function Sidebar() {
                         "Finance Management": [
                           "Finance Management",
                           "Manage your finance records",
+                        ],
+                        "Procurement Management": [
+                          "Procurement Management",
+                          "Manage requests, quotes & purchases seamlessly",
+                        ],
+                        "Warehouse Management": [
+                          "Warehouse Management",
+                          "Streamline inventory and farmer requests",
                         ],
                       };
 
@@ -529,6 +558,10 @@ export default function Sidebar() {
                     return <FinanceManagement />;
                   case "Field Allocation":
                     return <FieldAllocation />;
+                  case "Procurement Management":
+                    return <ProcurementOfficerModule />;
+                  case "Warehouse Management":
+                    return <WarehouseModule />;
                   default:
                     return <Content />;
                 }

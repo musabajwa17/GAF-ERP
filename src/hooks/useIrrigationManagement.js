@@ -49,7 +49,7 @@ export default function IrrigationManagement() {
       alert('✅ Irrigation record added successfully!');
       setNewRecord({ field: '', irrigationMethod: '', waterUsed: '', date: '', notes: '' });
     } catch (error) {
-      alert('❌ Failed to add irrigation record. Please try again.');
+      alert('❌ Failed to add irrigation record. Please try again.', error);
     }
   };
 
@@ -62,7 +62,7 @@ export default function IrrigationManagement() {
       await deleteIrrigation(id);
       alert('🗑️ Record deleted successfully!');
     } catch (error) {
-      alert('❌ Failed to delete record. Please try again.');
+      alert('❌ Failed to delete record. Please try again.', error);
     }
   };
 
@@ -75,7 +75,7 @@ export default function IrrigationManagement() {
       await updateIrrigation(id, { notes: updated });
       alert('✅ Record updated successfully!');
     } catch (error) {
-      alert('❌ Failed to update record.');
+      alert('❌ Failed to update record.', error);
     }
   };
 
