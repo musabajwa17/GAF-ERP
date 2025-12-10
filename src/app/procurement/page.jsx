@@ -9,6 +9,7 @@ import QuoteFormModal from '../../components/procurement/create_quote';
 import PurchaseFormModal from '../../components/procurement/PurchaseForm';
 import RequestDetailModal from '../../components/procurement/RequestDetailModal';
 import QuoteDetailModal from '../../components/procurement/QuotesDetialsModal';
+import PurchaseDetailModal from '../../components/procurement/PurchaseDetailsModal';
 
 const STORAGE_KEYS = {
   PROC_REQUESTS: "procurement_requests_v2",
@@ -61,39 +62,88 @@ export default function ProcurementOfficerModule() {
     setToast({ message: `Request status updated to ${status}`, type: "success" });
   };
 
-  const createQuote = (quoteData) => {
-    if (!quoteData.supplierName.trim()) {
-      setToast({ message: "Enter supplier name", type: "error" });
-      return;
-    }
-    const request = requests.find(r => r.id === selectedRequestId);
-    if (!request) return;
+ const createQuote = (quoteData) => {
+  // basic validation
+  if (!quoteData || !quoteData.supplierName || !quoteData.supplierName.trim()) {
+    setToast({ message: "Enter supplier name", type: "error" });
+    return;
+  }
 
-    let totalPrice = 0;
-    const quoteItems = request.items.map(item => {
-      const pricePerUnit = quoteData.prices[`${item.itemId}-${item.category}`] || 0;
-      const itemTotal = pricePerUnit * item.qty;
+  // prefer requestId from payload, fallback to selectedRequestId
+  const requestId = quoteData.requestId || selectedRequestId;
+  const request = requests.find(r => r.id === requestId);
+  if (!request) {
+    setToast({ message: "Request not found", type: "error" });
+    return;
+  }
+
+  // build quoteItems in a robust way supporting both shapes
+  let totalPrice = 0;
+  let quoteItems = [];
+
+  if (Array.isArray(quoteData.items) && quoteData.items.length) {
+    // modal already sent items (each may contain pricePerUnit/totalPrice)
+    quoteItems = quoteData.items.map((it) => {
+      const quantity = it.requiredQty || it.shortageQty || it.qty || 0;
+      const pricePerUnit = (it.pricePerUnit !== undefined && it.pricePerUnit !== null)
+        ? Number(it.pricePerUnit)
+        : 0;
+      const itemTotal = (it.totalPrice !== undefined && it.totalPrice !== null)
+        ? Number(it.totalPrice)
+        : pricePerUnit * quantity;
+
+      totalPrice += (Number.isFinite(itemTotal) ? itemTotal : 0);
+
+      return {
+        ...it,
+        pricePerUnit,
+        totalPrice: Number.isFinite(itemTotal) ? itemTotal : 0
+      };
+    });
+  } else if (quoteData.prices && typeof quoteData.prices === 'object') {
+    // legacy: build items from original request using quoteData.prices map
+    quoteItems = request.items.map((item) => {
+      const key = `${item.itemId}-${item.category}`;
+      const pricePerUnit = Number(quoteData.prices[key]) || 0;
+      const quantity = item.requiredQty || item.shortageQty || 0;
+      const itemTotal = pricePerUnit * quantity;
       totalPrice += itemTotal;
       return { ...item, pricePerUnit, totalPrice: itemTotal };
     });
+  } else {
+    // no pricing provided — create items with zeroes
+    quoteItems = request.items.map((item) => {
+      return { ...item, pricePerUnit: 0, totalPrice: 0 };
+    });
+    totalPrice = 0;
+  }
 
-    const quote = {
-      id: uid("QT"),
-      requestId: selectedRequestId,
-      supplierName: quoteData.supplierName.trim(),
-      supplierContact: quoteData.supplierContact.trim(),
-      items: quoteItems,
-      totalPrice,
-      notes: quoteData.notes.trim(),
-      status: "pending",
-      createdAt: Date.now(),
-    };
+  // if payload included an overall totalPrice, prefer/validate it (optional)
+  if (quoteData.totalPrice !== undefined && quoteData.totalPrice !== null) {
+    const numeric = Number(quoteData.totalPrice);
+    if (!Number.isNaN(numeric)) {
+      totalPrice = numeric; // trust caller if numeric
+    }
+  }
 
-    setQuotes(prev => [quote, ...prev]);
-    setShowQuoteForm(false);
-    setSelectedRequestId("");
-    setToast({ message: `Quote created for ${quote.supplierName}`, type: "success" });
+  const quote = {
+    id: uid("QT"),
+    requestId,
+    supplierName: quoteData.supplierName.trim(),
+    supplierContact: (quoteData.supplierContact || "").trim(),
+    items: quoteItems,
+    totalPrice,
+    notes: (quoteData.notes || "").trim(),
+    status: "pending",
+    createdAt: Date.now(),
   };
+
+  setQuotes(prev => [quote, ...prev]);
+  setShowQuoteForm(false);
+  setSelectedRequestId("");
+  setToast({ message: `Quote created for ${quote.supplierName}`, type: "success" });
+};
+
 
   const acceptQuote = (quoteId) => {
     const quote = quotes.find(q => q.id === quoteId);

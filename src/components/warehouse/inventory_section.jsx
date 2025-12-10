@@ -479,152 +479,191 @@ const InventorySection = ({ inventory, setInventory, setToast }) => {
         </div>
       </div>
 
-      {/* Inventory Table */}
-      <div className="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden">
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-6 py-5 border-b border-slate-200">
-          <div className="flex justify-between items-start mb-4">
-            <div>
-              <h2 className="text-2xl font-bold text-slate-900 mb-1">
-                {currentSeasonData?.label} Inventory
-              </h2>
-              <p className="text-sm text-slate-600">{currentSeasonData?.description}</p>
+     {/* Inventory Table */}
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200/60 overflow-hidden">
+        {/* Compact Header */}
+        <div className="px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-slate-50/50">
+          <div className="flex justify-between items-center mb-3">
+            <div className="flex items-center gap-3">
+              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                currentSeason === 'kharif' 
+                  ? 'bg-gradient-to-br from-amber-500 to-orange-500' 
+                  : 'bg-gradient-to-br from-blue-500 to-indigo-500'
+              } shadow-sm`}>
+                <Package className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-slate-900 leading-none mb-0.5">
+                  {currentSeasonData?.label} Inventory
+                </h2>
+                <p className="text-xs text-slate-500">{currentSeasonData?.description}</p>
+              </div>
             </div>
             <button 
               onClick={() => setShowAddForm(true)} 
-              className="flex items-center gap-2 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold px-5 py-2.5 rounded-xl shadow-md hover:shadow-lg transition-all transform hover:-translate-y-0.5"
+              className="flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-semibold px-4 py-2 rounded-lg shadow-sm hover:shadow-md transition-all text-sm"
             >
-              <Plus className="w-5 h-5" />
+              <Plus className="w-4 h-4" />
               Add Item
             </button>
           </div>
           
-          <div className="grid grid-cols-2 gap-4">
-            <div className="bg-white/80 backdrop-blur rounded-xl px-4 py-3 border border-blue-100">
-              <div className="flex items-center gap-2 mb-1">
-                <Archive className="w-4 h-4 text-blue-600" />
-                <span className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Unique Items</span>
+          {/* Compact Stats */}
+          <div className="flex gap-3">
+            <div className="flex-1 bg-white rounded-lg px-3 py-2 border border-slate-200/60 shadow-sm">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded bg-blue-50 flex items-center justify-center">
+                  <Archive className="w-3.5 h-3.5 text-blue-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider leading-none mb-0.5">Items</p>
+                  <p className="text-lg font-bold text-slate-900 leading-none">{uniqueItems}</p>
+                </div>
               </div>
-              <p className="text-2xl font-bold text-slate-900">{uniqueItems}</p>
             </div>
-            <div className="bg-white/80 backdrop-blur rounded-xl px-4 py-3 border border-emerald-100">
-              <div className="flex items-center gap-2 mb-1">
-                <TrendingUp className="w-4 h-4 text-emerald-600" />
-                <span className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Total Quantity</span>
+            <div className="flex-1 bg-white rounded-lg px-3 py-2 border border-slate-200/60 shadow-sm">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded bg-emerald-50 flex items-center justify-center">
+                  <TrendingUp className="w-3.5 h-3.5 text-emerald-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider leading-none mb-0.5">Total</p>
+                  <p className="text-lg font-bold text-slate-900 leading-none">{totalItems}</p>
+                </div>
               </div>
-              <p className="text-2xl font-bold text-slate-900">{totalItems}</p>
             </div>
           </div>
         </div>
 
         {currentSeasonInventory.length === 0 ? (
-          <div className="text-center py-16 px-4">
-            <div className="inline-flex items-center justify-center w-20 h-20 bg-slate-100 rounded-full mb-4">
-              <Package className="w-10 h-10 text-slate-400" />
+          <div className="text-center py-12 px-4">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-slate-50 rounded-xl mb-3 border border-slate-100">
+              <Package className="w-8 h-8 text-slate-300" />
             </div>
-            <p className="text-slate-500 font-medium">No items in {currentSeasonData?.label} inventory</p>
-            <p className="text-sm text-slate-400 mt-1">Add your first item to get started</p>
+            <p className="text-slate-600 font-medium text-sm">No items in {currentSeasonData?.label} inventory</p>
+            <p className="text-xs text-slate-400 mt-1">Add your first item to get started</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-slate-50 border-b-2 border-slate-200">
+              <thead className="bg-slate-50/50 border-b border-slate-100">
                 <tr>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Item Name</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Category</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Quantity</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Unit</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-4 text-right text-xs font-bold text-slate-600 uppercase tracking-wider">Actions</th>
+                  <th className="px-4 py-2.5 text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider">Item Name</th>
+                  <th className="px-4 py-2.5 text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider">Category</th>
+                  <th className="px-4 py-2.5 text-center text-[10px] font-bold text-slate-500 uppercase tracking-wider">Quantity</th>
+                  <th className="px-4 py-2.5 text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider">Unit</th>
+                  <th className="px-4 py-2.5 text-center text-[10px] font-bold text-slate-500 uppercase tracking-wider">Status</th>
+                  <th className="px-4 py-2.5 text-right text-[10px] font-bold text-slate-500 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
-                {currentSeasonInventory.map(item => (
-                  <tr key={item.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-6 py-4">
-                      <span className="font-semibold text-slate-900">{item.name}</span>
+              <tbody className="divide-y divide-slate-50">
+                {currentSeasonInventory.map((item, idx) => (
+                  <tr key={item.id} className="group hover:bg-slate-50/50 transition-colors">
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold ${
+                          item.category === 'fertilizers' ? 'bg-green-100 text-green-700' :
+                          item.category === 'pesticides' ? 'bg-red-100 text-red-700' :
+                          item.category === 'produce' ? 'bg-amber-100 text-amber-700' :
+                          item.category === 'seeds' ? 'bg-purple-100 text-purple-700' :
+                          'bg-slate-100 text-slate-700'
+                        }`}>
+                          {item.name.charAt(0).toUpperCase()}
+                        </div>
+                        <span className="font-semibold text-slate-900 text-sm">{item.name}</span>
+                      </div>
                     </td>
-                    <td className="px-6 py-4">
-                      <span className="inline-flex px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-medium capitalize">
+                    <td className="px-4 py-3">
+                      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-semibold capitalize ${
+                        item.category === 'fertilizers' ? 'bg-green-50 text-green-700 border border-green-200/50' :
+                        item.category === 'pesticides' ? 'bg-red-50 text-red-700 border border-red-200/50' :
+                        item.category === 'produce' ? 'bg-amber-50 text-amber-700 border border-amber-200/50' :
+                        item.category === 'seeds' ? 'bg-purple-50 text-purple-700 border border-purple-200/50' :
+                        'bg-slate-50 text-slate-700 border border-slate-200/50'
+                      }`}>
                         {item.category}
                       </span>
                     </td>
-                    <td className="px-6 py-4">
-                      {editingId === item.id ? (
-                        <input 
-                          type="number" 
-                          min={1} 
-                          value={editQty} 
-                          onChange={(e) => setEditQty(Number(e.target.value))}
-                          className="w-24 px-3 py-2 border-2 border-blue-500 rounded-lg text-center font-semibold outline-none" 
-                        />
-                      ) : (
-                        <span className="inline-flex px-4 py-1.5 bg-emerald-50 text-emerald-700 rounded-full text-sm font-bold">
-                          {item.qty}
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="text-slate-600 font-medium">{item.unit}</span>
-                    </td>
-                    <td className="px-6 py-4">
-                      {item.carriedFrom && (
-                        <span className="inline-flex px-2 py-1 bg-purple-50 text-purple-700 rounded-full text-xs font-medium">
-                          From {SEASONS.find(s => s.key === item.carriedFrom)?.label}
-                        </span>
-                      )}
-                    </td>
-                   
-
-
-                      <td className="px-6 py-4">
-                        {item.carriedFrom && (
-                          <span className="inline-flex px-2 py-1 bg-purple-50 text-purple-700 rounded-full text-xs font-medium">
-                            From {SEASONS.find(s => s.key === item.carriedFrom)?.label}
+                    <td className="px-4 py-3">
+                      <div className="flex justify-center">
+                        {editingId === item.id ? (
+                          <input 
+                            type="number" 
+                            min={1} 
+                            value={editQty} 
+                            onChange={(e) => setEditQty(Number(e.target.value))}
+                            className="w-20 px-2 py-1.5 border-2 border-emerald-400 bg-emerald-50 rounded-lg text-center font-bold text-sm outline-none focus:border-emerald-500" 
+                          />
+                        ) : (
+                          <span className="inline-flex items-center px-3 py-1 bg-gradient-to-r from-emerald-50 to-emerald-100 text-emerald-700 rounded-lg text-sm font-bold border border-emerald-200/50 shadow-sm">
+                            {item.qty}
                           </span>
                         )}
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center justify-end gap-2">
-                          {editingId === item.id ? (
-                            <>
-                              <button 
-                                onClick={() => saveEdit(item.id)} 
-                                className="p-2 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 rounded-lg transition-colors"
-                              >
-                                <Save className="w-4 h-4" />
-                              </button>
-                              <button 
-                                onClick={() => setEditingId(null)} 
-                                className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors"
-                              >
-                                <X className="w-4 h-4" />
-                              </button>
-                            </>
-                          ) : (
-                            <>
-                              <button 
-                                onClick={() => { setEditingId(item.id); setEditQty(item.qty); }} 
-                                className="p-2 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg transition-colors"
-                              >
-                                <Edit2 className="w-4 h-4" />
-                              </button>
-                              <button 
-                                onClick={() => deleteItem(item.id)} 
-                                className="p-2 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg transition-colors"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="text-slate-600 font-medium text-sm">{item.unit}</span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex justify-center">
+                        {item.carriedFrom ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-1 bg-purple-50 text-purple-700 rounded-md text-[11px] font-semibold border border-purple-200/50">
+                            <ArrowRight className="w-3 h-3" />
+                            {SEASONS.find(s => s.key === item.carriedFrom)?.label}
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2 py-1 bg-slate-50 text-slate-500 rounded-md text-[11px] font-medium border border-slate-200/50">
+                            Current
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-end gap-1.5">
+                        {editingId === item.id ? (
+                          <>
+                            <button 
+                              onClick={() => saveEdit(item.id)} 
+                              className="p-1.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 rounded-lg transition-all hover:scale-105 active:scale-95"
+                              title="Save"
+                            >
+                              <Save className="w-3.5 h-3.5" />
+                            </button>
+                            <button 
+                              onClick={() => setEditingId(null)} 
+                              className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg transition-all hover:scale-105 active:scale-95"
+                              title="Cancel"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button 
+                              onClick={() => { setEditingId(item.id); setEditQty(item.qty); }} 
+                              className="p-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg transition-all hover:scale-105 active:scale-95 border border-blue-200/50"
+                              title="Edit"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                            <button 
+                              onClick={() => deleteItem(item.id)} 
+                              className="p-1.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition-all hover:scale-105 active:scale-95 border border-red-200/50"
+                              title="Delete"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
       </div>
   
       {/* Modals */}

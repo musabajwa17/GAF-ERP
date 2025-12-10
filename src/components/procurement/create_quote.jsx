@@ -1,133 +1,277 @@
 import React, { useState } from 'react';
 import { X, DollarSign } from 'lucide-react';
 
-export default function QuoteFormModal({ request, onClose, onSubmit }) {
+const QuoteFormModal = ({ request, onClose, onSubmit }) => {
   const [supplierName, setSupplierName] = useState("");
   const [supplierContact, setSupplierContact] = useState("");
   const [notes, setNotes] = useState("");
-  const [prices, setPrices] = useState({});
+  const [prices, setPrices] = useState({}); // store raw string inputs
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = () => {
-    onSubmit({ supplierName, supplierContact, notes, prices });
+  // convert items/prices -> compute per-item totals and overall total
+  const calculateTotalsForPayload = () => {
+    if (!request?.items) return { items: [], totalPrice: null };
+
+    const itemsWithPrices = request.items.map((item) => {
+      const itemKey = `${item.itemId}-${item.category}`;
+      const raw = prices[itemKey];
+      const hasPrice = raw !== undefined && raw !== "";
+      const unitPrice = hasPrice ? Number(raw) : null;
+      const quantity = item.requiredQty || item.shortageQty || 0;
+      const totalPrice = hasPrice ? (unitPrice * quantity) : null;
+
+      // keep original item fields but add pricePerUnit and totalPrice
+      return {
+        ...item,
+        pricePerUnit: unitPrice,
+        totalPrice: totalPrice
+      };
+    });
+
+    const numericTotals = itemsWithPrices
+      .map(it => it.totalPrice)
+      .filter(v => v !== null && !Number.isNaN(v));
+
+    const overallTotal = numericTotals.length ? numericTotals.reduce((s, v) => s + v, 0) : null;
+
+    return { items: itemsWithPrices, totalPrice: overallTotal };
+  };
+
+  const calculateTotalForDisplay = () => {
+    const totals = calculateTotalsForPayload();
+    return totals.totalPrice !== null ? totals.totalPrice : 0;
+  };
+
+  const handleSubmit = async () => {
+    if (!supplierName.trim()) {
+      alert('Please enter supplier name');
+      return;
+    }
+
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+
+    try {
+      // build payload including per-item total and overall total
+      const { items: itemsPayload, totalPrice } = calculateTotalsForPayload();
+
+      const quotePayload = {
+        // you can add or override fields according to your app's shape
+        // e.g. id will often be set by the caller / storage layer
+        requestId: request?.id,
+        supplierName: supplierName.trim(),
+        supplierContact: supplierContact.trim() || null,
+        items: itemsPayload,
+        totalPrice: totalPrice,
+        notes,
+        status: 'pending',
+        createdAt: Date.now()
+      };
+
+      // send to parent (which will store it e.g. localStorage / Firestore)
+      await onSubmit(quotePayload);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const formatCurrency = (value) => {
+    if (value === null || value === undefined || Number.isNaN(value)) return '—';
+    return Number(value).toLocaleString('en-PK', { minimumFractionDigits: 2 });
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999] p-4 animate-fadeIn">
-      <div className="bg-white rounded-3xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto animate-slideInUp">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4">
+      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="sticky top-0 bg-gradient-to-r from-emerald-500 to-emerald-600 px-8 py-6 flex justify-between items-center rounded-t-3xl shadow-lg z-10">
+        <div className="bg-slate-50 border-b border-slate-200 px-6 py-4 flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-white/20 rounded-xl">
-              <DollarSign className="w-6 h-6 text-white" />
+            <div className="p-2 bg-slate-100 rounded-lg">
+              <DollarSign className="w-5 h-5 text-slate-600" />
             </div>
             <div>
-              <h2 className="text-2xl font-bold text-white">Create Quote</h2>
-              <p className="text-sm text-emerald-100">Request: {request?.id}</p>
+              <h2 className="text-lg font-semibold text-slate-900">Create Quote</h2>
+              <p className="text-sm text-slate-500">Request ID: {request?.id}</p>
             </div>
           </div>
-          <button 
+          <button
             onClick={onClose}
-            className="p-2 hover:bg-white/20 rounded-xl transition-colors"
+            disabled={isSubmitting}
+            className="p-2 hover:bg-slate-200 rounded-lg transition-colors disabled:opacity-50"
           >
-            <X className="w-6 h-6 text-white" />
+            <X className="w-5 h-5 text-slate-600" />
           </button>
         </div>
 
         {/* Body */}
-        <div className="p-8">
-          {/* Supplier Info */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <div className="flex-1 overflow-y-auto p-6">
+          {/* Request Info */}
+          <div className="grid grid-cols-3 gap-4 mb-6 p-4 bg-slate-50 border border-slate-200 rounded-lg">
             <div>
-              <label className="block text-sm font-bold text-slate-700 mb-2">
+              <p className="text-xs text-slate-500 font-medium mb-1">Site Name</p>
+              <p className="text-sm font-semibold text-slate-900">{request?.siteName || 'N/A'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-slate-500 font-medium mb-1">End User</p>
+              <p className="text-sm font-semibold text-slate-900">{request?.endUser || 'N/A'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-slate-500 font-medium mb-1">Department</p>
+              <p className="text-sm font-semibold text-slate-900">{request?.department || 'N/A'}</p>
+            </div>
+          </div>
+
+          {/* Supplier Info */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">
                 Supplier Name <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
                 value={supplierName}
                 onChange={(e) => setSupplierName(e.target.value)}
-                placeholder="e.g., ABC Supplies Ltd"
-                className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/20 outline-none transition-all text-slate-900 placeholder-slate-400 font-medium"
+                placeholder="Enter supplier name"
+                disabled={isSubmitting}
+                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all text-slate-900 placeholder-slate-400 disabled:bg-slate-50 disabled:cursor-not-allowed"
               />
             </div>
             <div>
-              <label className="block text-sm font-bold text-slate-700 mb-2">
-                Supplier Contact
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                Contact Number
               </label>
               <input
                 type="text"
                 value={supplierContact}
                 onChange={(e) => setSupplierContact(e.target.value)}
-                placeholder="e.g., +92-300-1234567"
-                className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/20 outline-none transition-all text-slate-900 placeholder-slate-400 font-medium"
+                placeholder="Enter contact number"
+                disabled={isSubmitting}
+                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all text-slate-900 placeholder-slate-400 disabled:bg-slate-50 disabled:cursor-not-allowed"
               />
             </div>
           </div>
 
-          {/* Divider */}
-          <div className="flex items-center gap-4 mb-8">
-            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-slate-300 to-transparent"></div>
-            <span className="text-sm font-bold text-slate-500 uppercase tracking-wider">Item Prices</span>
-            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-slate-300 to-transparent"></div>
-          </div>
-
           {/* Items Pricing */}
-          <div className="space-y-4 mb-8">
-            {request?.items.map((item, idx) => (
-              <div 
-                key={idx} 
-                className="group flex items-center justify-between gap-4 p-5 bg-gradient-to-r from-slate-50 to-slate-100 hover:from-emerald-50 hover:to-emerald-100 border-2 border-slate-200 hover:border-emerald-300 rounded-2xl transition-all duration-300"
-              >
-                <div className="flex-1">
-                  <p className="text-base font-bold text-slate-900 mb-1">{item.name}</p>
-                  <div className="flex items-center gap-3 text-sm text-slate-600">
-                    <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-lg font-semibold">
-                      {item.qty} {item.unit}
-                    </span>
-                    <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded-lg font-semibold capitalize">
-                      {item.category}
-                    </span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-slate-500 font-semibold">PKR</span>
-                  <input
-                    type="number"
-                    placeholder="0.00"
-                    value={prices[`${item.itemId}-${item.category}`] || ""}
-                    onChange={(e) => setPrices(prev => ({ 
-                      ...prev, 
-                      [`${item.itemId}-${item.category}`]: Number(e.target.value) || 0 
-                    }))}
-                    className="w-32 px-4 py-2 bg-white border-2 border-slate-300 group-hover:border-emerald-400 rounded-xl text-right font-bold text-slate-900 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/20 outline-none transition-all"
-                  />
-                </div>
-              </div>
-            ))}
+          <div className="mb-6">
+            <h3 className="text-sm font-medium text-slate-700 mb-3">Item Prices</h3>
+            <div className="border border-slate-200 rounded-lg overflow-hidden">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200">
+                    <th className="px-4 py-2.5 text-left text-xs font-medium text-slate-600 uppercase tracking-wider">
+                      Item Name
+                    </th>
+                    <th className="px-4 py-2.5 text-center text-xs font-medium text-slate-600 uppercase tracking-wider">
+                      Quantity
+                    </th>
+                    <th className="px-4 py-2.5 text-center text-xs font-medium text-slate-600 uppercase tracking-wider">
+                      Category
+                    </th>
+                    <th className="px-4 py-2.5 text-center text-xs font-medium text-slate-600 uppercase tracking-wider">
+                      Unit Price (PKR)
+                    </th>
+                    <th className="px-4 py-2.5 text-right text-xs font-medium text-slate-600 uppercase tracking-wider">
+                      Total Price (PKR)
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {request?.items.map((item, idx) => {
+                    const itemKey = `${item.itemId}-${item.category}`;
+                    const raw = prices[itemKey];
+                    const hasPrice = raw !== undefined && raw !== "";
+                    const unitPriceNumber = hasPrice ? Number(raw) : null;
+                    const quantity = item.requiredQty || item.shortageQty || 0;
+                    const totalPriceNumber = hasPrice ? (unitPriceNumber * quantity) : null;
+
+                    return (
+                      <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                        <td className="px-4 py-3">
+                          <span className="text-sm font-medium text-slate-900">{item.itemName}</span>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <span className="inline-flex items-center px-2 py-1 bg-slate-100 text-slate-700 rounded text-xs font-medium">
+                            {quantity} {item.uom}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <span className="inline-flex items-center px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs font-medium capitalize">
+                            {item.category}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex justify-center">
+                            <input
+                              type="number"
+                              placeholder="0.00"
+                              value={prices[itemKey] ?? ""}
+                              onChange={(e) =>
+                                setPrices(prev => ({ ...prev, [itemKey]: e.target.value }))
+                              }
+                              disabled={isSubmitting}
+                              className="w-32 px-3 py-1.5 bg-white border border-slate-300 rounded text-right text-sm font-medium text-slate-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all disabled:bg-slate-50 disabled:cursor-not-allowed"
+                            />
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <span className="text-sm font-semibold text-slate-900">
+                            {totalPriceNumber !== null ? formatCurrency(totalPriceNumber) : '—'}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot>
+                  <tr className="bg-slate-50 border-t-2 border-slate-200">
+                    <td colSpan="4" className="px-4 py-3 text-right text-sm font-semibold text-slate-700">
+                      Total Amount:
+                    </td>
+                    <td className="px-4 py-3 text-right text-base font-bold text-slate-900">
+                      PKR {formatCurrency(calculateTotalsForPayload().totalPrice ?? 0)}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
           </div>
 
           {/* Notes */}
-          <div className="mb-8">
-            <label className="block text-sm font-bold text-slate-700 mb-2">
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">
               Additional Notes
             </label>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Any additional notes or terms..."
+              placeholder="Enter any additional notes or terms..."
               rows={3}
-              className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/20 outline-none transition-all text-slate-900 placeholder-slate-400 font-medium resize-none"
+              disabled={isSubmitting}
+              className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all text-slate-900 placeholder-slate-400 resize-none disabled:bg-slate-50 disabled:cursor-not-allowed"
             />
           </div>
+        </div>
 
-          {/* Submit Button */}
+        {/* Footer */}
+        <div className="bg-slate-50 border-t border-slate-200 px-6 py-4 flex justify-end gap-3">
+          <button
+            onClick={onClose}
+            disabled={isSubmitting}
+            className="px-4 py-2 border border-slate-300 text-slate-700 font-medium rounded-lg hover:bg-slate-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Cancel
+          </button>
           <button
             onClick={handleSubmit}
-            className="w-full bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-bold py-4 rounded-2xl shadow-lg shadow-emerald-500/50 hover:shadow-xl hover:shadow-emerald-500/60 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+            disabled={isSubmitting || !supplierName.trim()}
+            className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-600"
           >
-            Create Quote
+            {isSubmitting ? 'Creating...' : 'Create Quote'}
           </button>
         </div>
       </div>
     </div>
   );
-}
+};
+
+export default QuoteFormModal;
